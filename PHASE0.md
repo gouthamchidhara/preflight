@@ -3,10 +3,10 @@
 Everything the agent does is **read-only** except fixes you click. Nothing needs Node on the UMD.
 
 ## Before (dev PC)
-1. Merge the branch into `main` (or switch to `claude/inspiring-bohr-rfl4wy`).
-2. GitHub → **Actions** → latest green **ci** run → download artifact **preflight-agent-win-x64** (zip).
-3. No green run? On any Windows PC with Node 22: `pnpm install; powershell -File apps\agent\installer\build-exe.ps1`.
-4. Copy the zip to a USB stick or share.
+1. Everything is on `main`: VS Code → Clone Repository → `gouthamchidhara/preflight`.
+2. GitHub → **Actions** → latest **ci** run. If **windows-agent** is green, download artifact **preflight-agent-win-x64** (zip).
+3. Red? Skip the exe for now: use `scripts\probe\probe.ps1` alone (step 8) and send me the error.
+4. Copy the zip (or just `probe.ps1`) to a USB stick or share.
 
 ## On the UMD (docked, AC, Administrator PowerShell)
 5. Unzip to `C:\Preflight` and `cd C:\Preflight`.
