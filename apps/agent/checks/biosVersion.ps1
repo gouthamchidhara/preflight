@@ -8,7 +8,7 @@ Invoke-Check {
     $have = "$($bios.SMBIOSBIOSVersion)".Trim()
     $ev = @{ model = $cs.Model; sku = $cs.SystemSKUNumber; releaseDate = "$($bios.ReleaseDate)" }
     $known = @{}
-    foreach ($p in $P.versions.PSObject.Properties) { if (-not (Test-Tbd $p.Value)) { $known[$p.Name] = "$($p.Value)" } }
+    foreach ($prop in $P.versions.PSObject.Properties) { if (-not (Test-Tbd $prop.Value)) { $known[$prop.Name] = "$($prop.Value)" } }
     if ($known.Count -eq 0) { Out-Result needs_human -Actual $have -Evidence $ev }
     $variant = $null
     if (-not (Test-Tbd $P.touchSkuPattern)) { $variant = if ("$($cs.SystemSKUNumber) $($cs.Model)" -match $P.touchSkuPattern) { 'touch' } else { 'nontouch' } }

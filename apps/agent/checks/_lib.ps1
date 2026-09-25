@@ -5,6 +5,7 @@
 #   - output: exactly one JSON line via Out-Result, then exit 0
 #   - READ-ONLY: a check never changes the system
 #   - an unset golden value ("TBD...") => report what was found as needs_human, never guess
+#   - PowerShell variables are case-insensitive: never name a variable $p (it IS $P, the params)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -65,7 +66,12 @@ function Get-UserProfilePath([string]$User) {
 
 # "%USERPROFILE:Mechanic%\Desktop" -> "C:\Users\Mechanic\Desktop"
 function Expand-PfPath([string]$Path) {
-    return [regex]::Replace($Path, '%USERPROFILE:([^%]+)%', { param($m) Get-UserProfilePath $m.Groups[1].Value })
+    $m = [regex]::Match($Path, '%USERPROFILE:([^%]+)%')
+    while ($m.Success) {
+        $Path = $Path.Replace($m.Value, (Get-UserProfilePath $m.Groups[1].Value))
+        $m = [regex]::Match($Path, '%USERPROFILE:([^%]+)%')
+    }
+    return $Path
 }
 
 # Runs $Body with the user's registry root (HKU\<SID> if logged on, else NTUSER.DAT loaded under a

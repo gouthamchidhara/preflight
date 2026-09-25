@@ -30,10 +30,15 @@ function ps(script: string, params: unknown, mocks = ''): Promise<{ json: Record
     let stderr = '';
     child.stdout.on('data', (d) => (stdout += d));
     child.stderr.on('data', (d) => (stderr += d));
-    const timer = setTimeout(() => child.kill(), 90_000);
-    child.on('close', () => {
+    let timedOut = false;
+    const started = Date.now();
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, 90_000);
+    child.on('close', (code) => {
       clearTimeout(timer);
-      const raw = `${stdout}\n${stderr}`;
+      const raw = `${stdout}\n${stderr}\n[exit ${code}, ${Date.now() - started} ms${timedOut ? ', KILLED: timed out after 90 s' : ''}]`;
       const line = stdout.trim().split(/\r?\n/).filter((l) => l.startsWith('{')).pop();
       if (!line) reject(new Error(`no JSON from ${script}:\n${raw}`));
       else resolvePs({ json: JSON.parse(line), raw });
@@ -68,6 +73,13 @@ describe.skipIf(!hasPwsh)('PowerShell check scripts', () => {
       .join('; ');
     const r = spawnSync(PWSH, ['-NoProfile', '-Command', cmd], { encoding: 'utf8' });
     expect(r.stdout.trim()).toBe('');
+  });
+
+  it('no script declares $p (PowerShell names are case-insensitive: $p would overwrite the $P params)', () => {
+    for (const f of readdirSync(CHECKS).filter((x) => x.endsWith('.ps1') && x !== '_lib.ps1')) {
+      const src = readFileSync(join(CHECKS, f), 'utf8');
+      expect(src, f).not.toMatch(/(foreach\s*\(\s*\$p\s+in|\$p\s*=[^=])/);
+    }
   });
 
   it('every check script emits exactly one valid JSON verdict, even when Windows cmdlets are missing', async () => {
@@ -164,8 +176,8 @@ describe.skipIf(!hasPwsh)('PowerShell check scripts', () => {
       writeFileSync(join(dir, 'dst.jks'), 'good');
       const golden = 'sha256:' + createHash('sha256').update('good').digest('hex');
       const base = { path: join(dir, 'dst.jks'), source: join(dir, 'src.jks') };
-      expect((await ps('fileHash.ps1', { ...base, sha256: 'TBD(P0-9)' })).json.status).toBe('pass');
-      expect((await ps('fileHash.ps1', { ...base, sha256: golden })).json.status).toBe('pass');
+      expect((await ps('fileHash.ps1', { ...base, sha256: 'TBD(P0-9)' })).json).toMatchObject({ status: 'pass' });
+      expect((await ps('fileHash.ps1', { ...base, sha256: golden })).json).toMatchObject({ status: 'pass' });
       writeFileSync(join(dir, 'dst.jks'), 'tampered');
       expect((await ps('fileHash.ps1', { ...base, sha256: golden })).json.status).toBe('fail');
       expect((await ps('fileHash.ps1', { ...base, path: join(dir, 'missing.jks'), sha256: golden })).json).toMatchObject({ status: 'fail', actual: 'file missing' });
@@ -207,7 +219,9 @@ describe.skipIf(!hasPwsh)('PowerShell check scripts', () => {
       expect((await ps('biosVersion.ps1', { versions: { touch: 'TBD', nontouch: 'TBD' }, touchSkuPattern: 'TBD' }, m)).json.status).toBe('needs_human');
       expect((await ps('biosVersion.ps1', { versions: { touch: 'V3.00L14', nontouch: 'V2.00L20' }, touchSkuPattern: 'TBD' }, m)).json.status).toBe('pass');
       expect((await ps('biosVersion.ps1', { versions: { touch: 'V3.00L15', nontouch: 'V2.00L20' }, touchSkuPattern: 'TBD' }, m)).json.status).toBe('fail');
-      expect((await ps('biosVersion.ps1', { versions: { touch: 'V3.00L14', nontouch: 'V2.00L20' }, touchSkuPattern: 'RZ$' }, m)).json.status).toBe('pass');
+      expect((await ps('biosVersion.ps1', { versions: { touch: 'V3.00L14', nontouch: 'V2.00L20' }, touchSkuPattern: 'RZ' }, m)).json.status).toBe('pass');
+      // touch unit (SKU matches) on the non-touch release must fail — catches params being clobbered mid-script
+      expect((await ps('biosVersion.ps1', { versions: { touch: 'V9.99', nontouch: 'V3.00L14' }, touchSkuPattern: 'RZ' }, m)).json).toMatchObject({ status: 'fail', expected: 'V9.99 (touch)' });
     });
     it('pnpAbsent: Bluetooth radio present fails', async () => {
       const m = (cls: string) => `function Get-PnpDevice { param([switch]$PresentOnly, $ErrorAction) @([pscustomobject]@{ Class='${cls}'; FriendlyName='Intel Wireless Bluetooth'; Status='OK' }) }`;

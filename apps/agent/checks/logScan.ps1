@@ -15,7 +15,7 @@ Invoke-Check {
     $hits = @()
     foreach ($l in $logs) {
         foreach ($line in (Get-Content -Path $l.FullName -Tail 2000 -ErrorAction SilentlyContinue)) {
-            foreach ($p in $pats) { if ($line -like "*$p*") { $hits += $line; break } }
+            foreach ($pat in $pats) { if ($line -like "*$pat*") { $hits += $line; break } }
         }
     }
     if ($hits.Count -eq 0) { Out-Result pass -Expected 'no known errors' -Actual 'none' -Evidence @{ files = $files } }

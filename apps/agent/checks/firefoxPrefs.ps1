@@ -6,7 +6,7 @@ Invoke-Check {
     $dirs = @(Get-FirefoxProfileDirs $P.user $P.profileDir)
     $plugin = @(Get-ChildItem 'C:\Program Files (x86)\Adobe', 'C:\Program Files\Adobe' -Recurse -Filter nppdf32.dll -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
     $want = @{}
-    foreach ($p in $P.prefs.PSObject.Properties) { $want[$p.Name] = "$($p.Value)" }
+    foreach ($prop in $P.prefs.PSObject.Properties) { $want[$prop.Name] = "$($prop.Value)" }
     $expected = ($want.Keys | Sort-Object | ForEach-Object { "$_=$($want[$_])" }) -join ', '
     if ($dirs.Count -eq 0) { Out-Result needs_human -Expected $expected -Actual 'no Firefox profile found' -Evidence @{ plugin = $plugin } }
     $report = @()
