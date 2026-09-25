@@ -1,17 +1,17 @@
 /**
- * UMDAgent service entry (Node SEA, wrapped by WinSW — PLAN.md §3, C5).
- * TODO(T8): config load, enrollment, 15 s checkin, disk queue, pino file logs.
- * TODO(T9): check runner + PowerShell invocation wrapper (§6.4).
+ * PreflightAgent (PLAN.md §3). Library surface; the executable entry is cli.ts.
  */
 import { CONTRACTS_VERSION } from '@umd/contracts';
 
-export const AGENT_VERSION = '0.1.0';
+export const AGENT_VERSION = '0.3.0';
 
 export function banner(): string {
-  return `UMDAgent ${AGENT_VERSION} (contracts ${CONTRACTS_VERSION})`;
+  return `PreflightAgent ${AGENT_VERSION} (contracts ${CONTRACTS_VERSION})`;
 }
 
-// Entry point only runs when executed directly (kept side-effect free for tests).
-if (process.argv[1]?.endsWith('index.js')) {
-  console.log(banner());
-}
+export { AgentService, sleep, type AgentDeps, type QueueBody } from './agent.js';
+export { runRule, runRules, lastJsonLine } from './runner.js';
+export { makeShell, powershell, type Shell, type ShellResult } from './shell.js';
+export { DiskQueue } from './queue.js';
+export { executeJob } from './jobs.js';
+export { cleanEvidence } from './redact.js';

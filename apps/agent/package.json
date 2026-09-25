@@ -6,14 +6,21 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "bundle": "node scripts/bundle.mjs",
+    "test": "vitest run",
+    "check": "node dist/cli.js check"
   },
   "dependencies": {
-    "@umd/contracts": "workspace:*"
+    "@umd/contracts": "workspace:*",
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
+    "@umd/api": "workspace:^",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
+  },
+  "bin": {
+    "preflight-agent": "./dist/cli.js"
   }
 }

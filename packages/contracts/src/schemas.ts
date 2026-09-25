@@ -42,6 +42,8 @@ export const Rule = z.object({
   timeoutMs: z.number().int().min(100).max(300_000).default(10_000),
   remediation: Remediation.optional(),
   hint: z.string().optional(),
+  /** Who evaluates it: the agent on the UMD, the server (buildstats), or a human only. */
+  context: z.enum(['agent', 'server', 'human']).default('agent'),
 });
 export type Rule = z.infer<typeof Rule>;
 
@@ -113,6 +115,8 @@ export const Job = z.object({
   id: z.string().uuid(),
   scriptId: ScriptId,
   params: z.record(z.unknown()).default({}),
+  /** When set, the agent re-runs this rule after the script (remediation flow, §7). */
+  ruleId: RuleId.optional(),
   status: JobStatus,
   createdAt: z.string().datetime(),
 });
