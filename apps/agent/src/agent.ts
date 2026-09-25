@@ -139,7 +139,7 @@ export class AgentService {
       this.policyVersion = p.policyVersion;
       this.d.log.info('policy updated', { policyVersion: p.policyVersion, rules: p.rules.length });
     }
-    if (res.runNow) await this.runChecks('manual', { stage: res.runNow.stage });
+    if (res.runNow) await this.runChecks('manual', { stage: res.runNow.stage, ruleIds: res.runNow.ruleIds });
     for (const job of res.jobs) await this.handleJob(job);
     await this.flush();
   }

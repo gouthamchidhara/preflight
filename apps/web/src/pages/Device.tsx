@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { STAGES, type AttestationView, type DeviceDetail, type JobView, type Result, type Rule, type Stage } from '@umd/contracts';
 import { ArrowLeft, Check, Copy, Network, Plug, RefreshCw, Signal, Wrench } from 'lucide-react';
 import { STAGE_LABEL, show, timeAgo } from '../lib/format.js';
@@ -7,6 +7,8 @@ import { useSource } from '../lib/context.js';
 import { Badge, READINESS, RESULT, STAGE_STATE } from '../components/status.js';
 import { StageBar } from '../components/StageBar.js';
 import { Banner } from '../components/Banner.js';
+import { NoteDialog } from '../components/NoteDialog.js';
+import type { RunSummary } from '../lib/source.js';
 
 type RowState = keyof typeof RESULT;
 
@@ -60,14 +62,16 @@ const JOB_TONE: Record<JobView['status'], string> = {
   timed_out: 'text-critical-ink',
 };
 
-function RuleRow({ rule, result, attestation, busy, onAttest, onRevoke, onFix }: {
+function RuleRow({ rule, result, attestation, busy, pending, onAttest, onRevoke, onFix, onRecheck }: {
   rule: Rule;
   result: Result | undefined;
   attestation: AttestationView | undefined;
   busy: boolean;
+  pending: boolean;
   onAttest: () => void;
   onRevoke: () => void;
   onFix: () => void;
+  onRecheck: () => void;
 }) {
   const state = rowState(result, Boolean(attestation));
   const failing = state === 'fail' || state === 'error';
@@ -103,6 +107,11 @@ function RuleRow({ rule, result, attestation, busy, onAttest, onRevoke, onFix }:
         )}
       </div>
       <div className="flex items-start gap-2 sm:justify-end">
+        {(failing || state === 'needs_human') && !attestation && (
+          <button type="button" onClick={onRecheck} disabled={busy || pending} className="rounded-lg border border-line px-3 py-1.5 text-sm text-ink-2 hover:border-ink-3 hover:text-ink disabled:opacity-50">
+            {pending ? 'Queued…' : 'Re-check'}
+          </button>
+        )}
         {failing && rule.remediation && !attestation && (
           <button
             type="button"
@@ -135,9 +144,11 @@ export interface DeviceActions {
   revoke: (attId: string) => void;
   fix: (rule: Rule) => void;
   runAll: () => void;
+  runStage: (stage: Exclude<Stage, 'register'>) => void;
+  recheckRule: (ruleId: string) => void;
 }
 
-export function DeviceView({ d, actions, onBack, optimistic = {} }: { d: DeviceDetail; actions: DeviceActions; onBack: () => void; optimistic?: Record<string, boolean> }) {
+export function DeviceView({ d, actions, onBack, optimistic = {}, pendingRuns = new Set<string>(), runs = [] }: { d: DeviceDetail; actions: DeviceActions; onBack: () => void; optimistic?: Record<string, boolean>; pendingRuns?: Set<string>; runs?: RunSummary[] }) {
   const [issuesOnly, setIssuesOnly] = useState(false);
   const byRule = new Map(d.results.map((r) => [r.ruleId, r]));
   const attByRule = new Map(d.attestations.filter((a) => a.ruleId).map((a) => [a.ruleId!, a]));
@@ -199,7 +210,7 @@ export function DeviceView({ d, actions, onBack, optimistic = {} }: { d: DeviceD
         <section className="rounded-xl border border-line bg-surface">
           <h2 className="border-b border-line px-4 py-3 text-sm font-medium text-ink-2">Recent fixes</h2>
           <ul className="divide-y divide-line text-sm">
-            {d.jobs.slice(0, 5).map((j) => (
+            {d.jobs.slice(0, 10).map((j) => (
               <li key={j.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2">
                 <span>
                   <span className="font-mono text-xs">{j.scriptId}</span>
@@ -207,7 +218,7 @@ export function DeviceView({ d, actions, onBack, optimistic = {} }: { d: DeviceD
                   <span className="text-ink-3"> · {j.createdBy} · {timeAgo(j.createdAt)}</span>
                 </span>
                 <span className={`font-medium ${JOB_TONE[j.status]}`}>{j.status.replace('_', ' ')}</span>
-                {j.status === 'failed' && j.stderr && <span className="w-full font-mono text-xs text-critical-ink">{j.stderr.slice(0, 300)}</span>}
+                {(j.stdout || j.stderr) && <details className="w-full text-xs"><summary className="cursor-pointer text-ink-3">Show output</summary><pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-page p-2 font-mono text-ink-2">{j.stdout}{j.stderr ? `\n${j.stderr}` : ''}</pre></details>}
               </li>
             ))}
           </ul>
@@ -222,6 +233,8 @@ export function DeviceView({ d, actions, onBack, optimistic = {} }: { d: DeviceD
         </label>
       </div>
 
+      {runs.length > 0 && <section className="rounded-xl border border-line bg-surface"><h2 className="border-b border-line px-4 py-3 text-sm font-medium text-ink-2">Recent check runs</h2><ul className="divide-y divide-line text-sm">{runs.slice(0, 10).map((run) => <li key={run.id} className="flex flex-wrap justify-between gap-2 px-4 py-2"><span>{run.trigger}{run.stage ? ` · ${STAGE_LABEL[run.stage as Stage] ?? run.stage}` : ' · all stages'}</span><span className="text-ink-3">{timeAgo(run.finishedAt)}</span></li>)}</ul></section>}
+
       {STAGES.map((stage: Stage) => {
         const rules = d.rules.filter((r) => r.stage === stage).filter((r) => {
           if (!issuesOnly) return true;
@@ -234,7 +247,7 @@ export function DeviceView({ d, actions, onBack, optimistic = {} }: { d: DeviceD
           <section key={stage} id={`stage-${stage}`} className="overflow-hidden rounded-xl border border-line bg-surface">
             <header className="flex items-center justify-between border-b border-line px-4 py-3">
               <h3 className="font-semibold">{STAGE_LABEL[stage]}</h3>
-              <Badge tone={STAGE_STATE[d.stages[stage]]} />
+              <div className="flex items-center gap-3"><Badge tone={STAGE_STATE[d.stages[stage]]} />{stage !== 'register' && <button type="button" onClick={() => actions.runStage(stage)} disabled={actions.busy || pendingRuns.has(stage)} className="rounded-lg border border-line px-2.5 py-1 text-xs text-ink-2 hover:border-accent hover:text-ink disabled:opacity-50">{pendingRuns.has(stage) ? 'Queued…' : 'Run stage'}</button>}</div>
             </header>
             {rules.length > 0 && (
               <ul className="divide-y divide-line">
@@ -245,9 +258,11 @@ export function DeviceView({ d, actions, onBack, optimistic = {} }: { d: DeviceD
                     result={byRule.get(rule.id)}
                     attestation={attByRule.get(rule.id)}
                     busy={actions.busy}
+                    pending={pendingRuns.has(rule.id)}
                     onAttest={() => actions.attestRule(rule.id)}
                     onRevoke={() => actions.revoke(attByRule.get(rule.id)!.id)}
                     onFix={() => actions.fix(rule)}
+                    onRecheck={() => actions.recheckRule(rule.id)}
                   />
                 ))}
               </ul>
@@ -290,8 +305,13 @@ export function DeviceDetailPage({ id, onBack }: { id: string; onBack: () => voi
   const { data, error, loading, reload } = usePoll(() => source.getDevice(id), 5000, [source, id]);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [noteFor, setNoteFor] = useState<string | null>(null);
+  const [pendingRuns, setPendingRuns] = useState<Set<string>>(new Set());
+  const [runs, setRuns] = useState<RunSummary[]>([]);
   // manual-step ticks show instantly; rolled back if the server refuses
   const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
+
+  useEffect(() => { void source.listRuns(id).then(setRuns).catch(() => setRuns([])); }, [source, id, data?.lastRunAt]);
 
   const flash = (msg: string, ms = 3500) => {
     setToast(msg);
@@ -327,8 +347,7 @@ export function DeviceDetailPage({ id, onBack }: { id: string; onBack: () => voi
   const actions: DeviceActions = {
     busy,
     attestRule: (ruleId) => {
-      const note = window.prompt('Note (optional) — why is this OK?') ?? undefined;
-      void act(() => source.attest(id, { ruleId, ...(note ? { note } : {}) }));
+      setNoteFor(ruleId);
     },
     toggleItem: (itemId, existing) => {
       setOptimistic((o) => ({ ...o, [itemId]: !existing }));
@@ -351,6 +370,14 @@ export function DeviceDetailPage({ id, onBack }: { id: string; onBack: () => voi
         void watchJob(job);
       }),
     runAll: () => void act(() => source.runNow(id), 'Queued: run all checks. Results in about a minute.'),
+    runStage: (stage) => {
+      setPendingRuns((p) => new Set(p).add(stage));
+      void act(() => source.runNow(id, stage), `Queued: ${stage} checks.`).finally(() => setPendingRuns((p) => { const n = new Set(p); n.delete(stage); return n; }));
+    },
+    recheckRule: (ruleId) => {
+      setPendingRuns((p) => new Set(p).add(ruleId));
+      void act(() => source.runNow(id, undefined, [ruleId]), 'Queued: rule re-check.').finally(() => setPendingRuns((p) => { const n = new Set(p); n.delete(ruleId); return n; }));
+    },
   };
 
   if (!data && loading) return <p className="text-sm text-ink-3">Loading device…</p>;
@@ -367,7 +394,8 @@ export function DeviceDetailPage({ id, onBack }: { id: string; onBack: () => voi
   return (
     <>
       {error && <Banner>Connection problem: {error.message}. Showing last known data.</Banner>}
-      <DeviceView d={data} actions={actions} onBack={onBack} optimistic={optimistic} />
+      <DeviceView d={data} actions={actions} onBack={onBack} optimistic={optimistic} pendingRuns={pendingRuns} runs={runs} />
+      {noteFor && <NoteDialog title="Attest checklist item" onCancel={() => setNoteFor(null)} onSubmit={(note) => { const ruleId = noteFor; setNoteFor(null); void act(() => source.attest(id, { ruleId, ...(note ? { note } : {}) })); }} />}
       {toast && (
         <div role="status" className="fixed bottom-4 left-1/2 max-w-[90vw] -translate-x-1/2 rounded-lg bg-ink px-4 py-2 text-sm text-page shadow-lg">
           {toast}

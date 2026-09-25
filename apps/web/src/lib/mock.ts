@@ -14,7 +14,7 @@ import {
   type JobView,
 } from '@umd/contracts';
 import { DEVICES, type Device } from '../mock/devices.js';
-import type { Source } from './source.js';
+import type { RunSummary, Source } from './source.js';
 
 const atts = new Map<string, AttestationView[]>(
   DEVICES.map((d) => [d.id, d.attestations.map((a, i) => ({ ...a, id: `${d.id}-att-${i}` }))]),
@@ -70,6 +70,11 @@ export const mockSource: Source = {
     atts.set(deviceId, (atts.get(deviceId) ?? []).filter((a) => a.id !== attId));
   },
   async runNow() {},
+  async listRuns(deviceId): Promise<RunSummary[]> {
+    const d = DEVICES.find((x) => x.id === deviceId);
+    return d?.results.length ? [{ id: randomId(), trigger: 'schedule', stage: null, startedAt: d.results[0]!.checkedAt, finishedAt: d.results[0]!.checkedAt, summary: {} }] : [];
+  },
+  async listScripts() { return []; },
   async createJob(deviceId, scriptId, _params, ruleId) {
     const job = { id: randomId(), deviceId, scriptId, ...(ruleId ? { ruleId } : {}), status: 'queued' as const, createdBy: 'demo.tech', createdAt: new Date().toISOString() };
     jobs.set(job.id, job);

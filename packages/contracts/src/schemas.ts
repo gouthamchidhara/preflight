@@ -133,7 +133,7 @@ export const JobResult = z.object({
 export const CheckinResponse = z.object({
   policyVersion: z.number().int().nonnegative(),
   jobs: z.array(Job),
-  runNow: z.union([z.literal(false), z.object({ stage: RuleStage.optional() })]),
+  runNow: z.union([z.literal(false), z.object({ stage: RuleStage.optional(), ruleIds: z.array(RuleId).max(100).optional() }).strict()]),
 });
 
 export const Policy = z.object({

@@ -7,7 +7,7 @@ import { DeviceView, type DeviceActions } from './pages/Device.js';
 import { DEVICES } from './mock/devices.js';
 import { mockDetail, mockSource, mockSummary } from './lib/mock.js';
 
-const noop: DeviceActions = { busy: false, attestRule() {}, toggleItem() {}, revoke() {}, fix() {}, runAll() {} };
+const noop: DeviceActions = { busy: false, attestRule() {}, toggleItem() {}, revoke() {}, fix() {}, runAll() {}, runStage() {}, recheckRule() {} };
 
 describe('routing', () => {
   it('parses fleet and device routes; rejects junk', () => {

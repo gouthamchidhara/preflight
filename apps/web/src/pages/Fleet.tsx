@@ -137,7 +137,14 @@ export function FleetView({ devices, rules, onOpen }: { devices: DeviceSummary[]
               </thead>
               <tbody>
                 {rows.map((v) => (
-                  <tr key={v.id} onClick={() => onOpen(v.id)} className="cursor-pointer border-b border-line last:border-0 hover:bg-raised">
+                  <tr
+                    key={v.id}
+                    tabIndex={0}
+                    role="link"
+                    onClick={() => onOpen(v.id)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(v.id); } }}
+                    className="cursor-pointer border-b border-line last:border-0 hover:bg-raised focus:bg-raised focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent"
+                  >
                     <td className="px-4 py-3">
                       <div className="font-mono text-sm font-medium">{v.assetTag || v.hostname}</div>
                       <div className="text-xs text-ink-3">{v.model}</div>

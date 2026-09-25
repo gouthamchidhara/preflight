@@ -10,6 +10,15 @@ export interface Me {
   name: string;
   roles: string[];
 }
+export interface RunSummary {
+  id: string;
+  trigger: string;
+  stage: string | null;
+  startedAt: string;
+  finishedAt: string;
+  summary: Record<string, number>;
+}
+export interface ScriptInfo { id: string; label: string; confirm: string | null; }
 
 export interface Source {
   kind: 'api' | 'mock';
@@ -19,7 +28,9 @@ export interface Source {
   getDevice(id: string): Promise<DeviceDetail | null>;
   attest(deviceId: string, body: { itemId?: string; ruleId?: string; note?: string }): Promise<void>;
   revokeAttestation(deviceId: string, attId: string): Promise<void>;
-  runNow(deviceId: string, stage?: Stage): Promise<void>;
+  runNow(deviceId: string, stage?: Stage, ruleIds?: string[]): Promise<void>;
+  listRuns(deviceId: string): Promise<RunSummary[]>;
+  listScripts(): Promise<ScriptInfo[]>;
   createJob(deviceId: string, scriptId: string, params: Record<string, unknown>, ruleId?: string): Promise<JobView>;
   getJob(jobId: string): Promise<JobView>;
 }
@@ -63,7 +74,9 @@ export const httpSource: Source = {
   },
   attest: async (id, body) => void (await call('POST', `/api/v1/devices/${id}/attestations`, body)),
   revokeAttestation: async (id, attId) => void (await call('DELETE', `/api/v1/devices/${id}/attestations/${attId}`)),
-  runNow: async (id, stage) => void (await call('POST', `/api/v1/devices/${id}/run`, stage ? { stage } : {})),
+  runNow: async (id, stage, ruleIds) => void (await call('POST', `/api/v1/devices/${id}/run`, { ...(stage ? { stage } : {}), ...(ruleIds?.length ? { ruleIds } : {}) })),
+  listRuns: (id) => call('GET', `/api/v1/devices/${id}/runs`),
+  listScripts: () => call('GET', '/api/v1/scripts'),
   createJob: (id, scriptId, params, ruleId) => call('POST', `/api/v1/devices/${id}/jobs`, { scriptId, params, ...(ruleId ? { ruleId } : {}) }),
   getJob: (jobId) => call('GET', `/api/v1/jobs/${jobId}`),
 };

@@ -158,7 +158,7 @@ export class Repo {
 
   async checkin(deviceId: string, c: Checkin) {
     return this.db.tx(async (q) => {
-      const dev = await q.query<{ run_request: { stage?: string } | null }>(
+      const dev = await q.query<{ run_request: { stage?: string; ruleIds?: string[] } | null }>(
         'SELECT run_request FROM devices WHERE id = $1 FOR UPDATE',
         [deviceId],
       );
@@ -343,8 +343,8 @@ export class Repo {
     return (await this.db.query('SELECT 1 FROM devices WHERE id = $1', [id])).length > 0;
   }
 
-  async requestRun(deviceId: string, stage?: string) {
-    await this.db.query('UPDATE devices SET run_request = $2::jsonb WHERE id = $1', [deviceId, json(stage ? { stage } : {})]);
+  async requestRun(deviceId: string, stage?: string, ruleIds?: string[]) {
+    await this.db.query('UPDATE devices SET run_request = $2::jsonb WHERE id = $1', [deviceId, json({ ...(stage ? { stage } : {}), ...(ruleIds?.length ? { ruleIds } : {}) })]);
   }
 
   async attest(deviceId: string, a: { itemId?: string; ruleId?: string; note?: string }, by: string): Promise<AttestationView> {

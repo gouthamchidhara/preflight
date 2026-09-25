@@ -186,9 +186,9 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     });
 
     user.post<{ Params: { id: string } }>('/devices/:id/run', { preHandler: [requireRole('Tech'), deviceParam] }, async (req, reply) => {
-      const body = parse(z.object({ stage: RuleStage.optional() }).strict(), req.body ?? {}, reply);
+      const body = parse(z.object({ stage: RuleStage.optional(), ruleIds: z.array(RuleId).max(100).optional() }).strict(), req.body ?? {}, reply);
       if (!body) return;
-      await repo.requestRun(req.params.id, body.stage);
+      await repo.requestRun(req.params.id, body.stage, body.ruleIds);
       await repo.audit(req.user!.name, 'device.run', req.params.id, body);
       return { ok: true, note: 'Agent picks this up at its next check-in (≤15 s).' };
     });

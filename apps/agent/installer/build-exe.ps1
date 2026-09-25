@@ -32,7 +32,7 @@ Copy-Item (Join-Path $agent 'checks') $pkg -Recurse
 Copy-Item (Join-Path $agent 'scripts') $pkg -Recurse
 Get-ChildItem (Join-Path $pkg 'scripts') -Filter *.mjs | Remove-Item
 Copy-Item (Join-Path $repo 'golden\manifest.json') (Join-Path $pkg 'golden.json')
-Copy-Item (Join-Path $PSScriptRoot 'PreflightAgent-service.xml'), (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'uninstall.ps1') $pkg
+Copy-Item (Join-Path $PSScriptRoot 'PreflightAgent-service.xml'), (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'onboard.ps1'), (Join-Path $PSScriptRoot 'uninstall.ps1') $pkg
 Copy-Item (Join-Path $repo 'scripts\probe\probe.ps1') $pkg
 
 $winsw = Join-Path $pkg 'PreflightAgent-service.exe'
