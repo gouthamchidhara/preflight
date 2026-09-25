@@ -12,7 +12,7 @@
   ],
   "bios.version": {
     "touch": "TBD(P0-11)",
-    "nontouch": "TBD(P0-11)"
+    "nontouch": "V3.00L19 M56"
   },
   "bios.bootFirst": "TBD(P0-15)",
   "wallpaper.sha256": "TBD(P0-9)",
