@@ -1,0 +1,24 @@
+{
+  "name": "umd-validation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "UMD post-imaging validation: agent, API, dashboard (see PLAN.md)",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "eslint .",
+    "db:migrate": "node scripts/db-placeholder.mjs migrate",
+    "db:seed": "node scripts/db-placeholder.mjs seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
+  }
+}

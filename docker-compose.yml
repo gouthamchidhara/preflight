@@ -1,0 +1,22 @@
+# Local development database only. No real credentials belong here (PLAN.md §0 rule 5).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: umd-validation-db
+    environment:
+      POSTGRES_USER: umd
+      # Dev-only password. Production uses a real secret store (PLAN.md §8).
+      POSTGRES_PASSWORD: dev_only_password
+      POSTGRES_DB: umd_validation
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U umd -d umd_validation']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
