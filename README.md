@@ -13,6 +13,17 @@ Replaces the paper checklist after SCCM imaging. Design lives in [PLAN.md](./PLA
 | `apps/mock-agent` | CLI | Fakes agents for dev/tests |
 | `packages/contracts` | zod | Shared schemas for agent, API, web |
 
+## Dashboard preview (mock data)
+
+```bash
+pnpm install && pnpm --filter @umd/contracts build
+pnpm --filter @umd/web dev      # http://localhost:5173
+```
+
+| Fleet | Device (4 TB missing) | Device (LSAPL fixes) |
+|---|---|---|
+| ![](docs/screenshots/1-fleet.png) | ![](docs/screenshots/2-device-not-ready-4tb.png) | ![](docs/screenshots/3-device-lsapl-fixes.png) |
+
 ## Setup
 
 ```bash
