@@ -2,6 +2,17 @@
 
 Everything the agent does is **read-only** except fixes you click. Nothing needs Node on the UMD.
 
+## The two tools
+| | `PreflightAgent.exe check` | `probe.ps1` |
+|---|---|---|
+| Answers | "Is this laptop ready?" | "What exactly is on this laptop?" |
+| Does | Runs the ~40 checks, prints PASS / FAIL / SKIP / HUMAN / ERROR per check | Raw snapshot: apps, icons, disks, SIM/APN, BIOS-visible settings, Firefox prefs, LSAPL hashes, registry, SCCM |
+| Unknown expected value (TBD) | Shows what it found as **HUMAN** instead of guessing | n/a, no verdicts |
+| Saves | JSON report in `C:\ProgramData\Preflight\results\` | Folder + zip + `SUMMARY.txt` in `C:\PreflightProbe\` |
+| Why tomorrow | See how the agent behaves on real hardware | Real values for `golden/manifest.json`; before/after diffs show where settings live |
+
+Neither changes the laptop. Passwords are never written; LSAPL values are hashed only.
+
 ## Before (dev PC)
 1. Everything is on `main`: VS Code → Clone Repository → `gouthamchidhara/preflight`.
 2. GitHub → **Actions** → latest **ci** run. If **windows-agent** is green, download artifact **preflight-agent-win-x64** (zip).
