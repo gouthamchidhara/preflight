@@ -1,5 +1,5 @@
 import { STAGES, type Stage, type StageState } from '@umd/contracts';
-import { STAGE_LABEL } from '../data.js';
+import { STAGE_LABEL } from '../lib/format.js';
 
 interface Props {
   stages: Record<Stage, StageState>;

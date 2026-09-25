@@ -3,7 +3,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**'] },
+  { ignores: ['**/dist/**', '**/dist-sea/**', '**/out/**', '**/node_modules/**', '**/coverage/**', 'data/**', 'data-demo/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -12,6 +12,9 @@ export default tseslint.config(
         // Node globals for plain JS/MJS scripts (no `globals` dep needed)
         process: 'readonly',
         console: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        setTimeout: 'readonly',
       },
     },
     rules: {

@@ -12,11 +12,15 @@
     "build": "pnpm -r build",
     "test": "pnpm --filter @umd/contracts --filter @umd/api build && pnpm -r test",
     "lint": "eslint .",
-    "db:migrate": "node scripts/db-placeholder.mjs migrate",
-    "db:seed": "node scripts/db-placeholder.mjs seed"
+    "start": "node apps/api/dist/index.js",
+    "demo": "node scripts/demo.mjs",
+    "dev:api": "pnpm --filter @umd/api dev",
+    "dev:web": "pnpm --filter @umd/web dev",
+    "agent:check": "node apps/agent/dist/cli.js check"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
+    "@umd/contracts": "workspace:^",
     "eslint": "^9.20.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.0"

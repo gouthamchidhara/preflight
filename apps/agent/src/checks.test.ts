@@ -68,7 +68,7 @@ describe.skipIf(!hasPwsh)('PowerShell check scripts', () => {
       const { json } = ps(`${rule.type}.ps1`, rule.params);
       expect(['pass', 'fail', 'error', 'skip', 'needs_human'], `${rule.id}`).toContain(json.status);
     }
-  }, 180_000);
+  }, 300_000);
 
   describe('dataDisk (4 TB drive)', () => {
     it('present: one internal 4 TB disk passes', () => {

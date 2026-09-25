@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "node scripts/bundle.mjs",
+    "bundle": "node bundle.mjs",
     "test": "vitest run",
     "check": "node dist/cli.js check"
   },
@@ -17,6 +17,8 @@
   "devDependencies": {
     "@types/node": "^22.13.0",
     "@umd/api": "workspace:^",
+    "esbuild": "^0.25",
+    "postject": "1.0.0-alpha.6",
     "typescript": "^5.7.3",
     "vitest": "^3.0.5"
   },

@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { STAGES } from '@umd/contracts';
-import { RULES, STAGE_LABEL, listDevices, timeAgo, viewDevice, type DeviceView } from '../data.js';
-import { Badge, READINESS, type DisplayReadiness } from '../components/status.js';
+import { STAGES, type DeviceSummary, type DisplayReadiness, type Rule } from '@umd/contracts';
+import { STAGE_LABEL, timeAgo } from '../lib/format.js';
+import { usePoll } from '../lib/usePoll.js';
+import { useSource } from '../lib/context.js';
+import { Badge, READINESS } from '../components/status.js';
 import { StageBar, StageLegend } from '../components/StageBar.js';
+import { Banner } from '../components/Banner.js';
 
 const ORDER: DisplayReadiness[] = ['not-ready', 'degraded', 'in-progress', 'stale', 'ready'];
-const RULE_NAME = new Map(RULES.map((r) => [r.id, r.name]));
 
 function StatTile({ state, count, active, onClick }: { state: DisplayReadiness; count: number; active: boolean; onClick: () => void }) {
   const tone = READINESS[state];
@@ -29,12 +31,12 @@ function StatTile({ state, count, active, onClick }: { state: DisplayReadiness; 
   );
 }
 
-function FailingSummary({ v }: { v: DeviceView }) {
+function IssueSummary({ v, ruleName }: { v: DeviceSummary; ruleName: (id: string) => string }) {
   if (v.failing.length === 0) {
     const waiting = STAGES.filter((s) => v.stages[s] === 'pending').map((s) => STAGE_LABEL[s]);
     return <span className="text-sm text-ink-3">{waiting.length ? `Waiting on ${waiting.join(', ')}` : '—'}</span>;
   }
-  const first = v.failing.slice(0, 2).map((f) => RULE_NAME.get(f.ruleId) ?? f.ruleId);
+  const first = v.failing.slice(0, 2).map((f) => ruleName(f.ruleId));
   const more = v.failing.length - first.length;
   return (
     <span className="text-sm text-ink-2">
@@ -44,32 +46,31 @@ function FailingSummary({ v }: { v: DeviceView }) {
   );
 }
 
-export function Fleet({ onOpen }: { onOpen: (id: string) => void }) {
+export function FleetView({ devices, rules, onOpen }: { devices: DeviceSummary[]; rules: Rule[]; onOpen: (id: string) => void }) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DisplayReadiness | null>(null);
-  const views = useMemo(() => listDevices().map((d) => viewDevice(d)), []);
+  const names = useMemo(() => new Map(rules.map((r) => [r.id, r.name])), [rules]);
+  const ruleName = (id: string) => names.get(id) ?? id;
 
   const counts = useMemo(() => {
     const c = Object.fromEntries(ORDER.map((s) => [s, 0])) as Record<DisplayReadiness, number>;
-    views.forEach((v) => c[v.display]++);
+    devices.forEach((v) => c[v.display]++);
     return c;
-  }, [views]);
+  }, [devices]);
 
   const q = query.trim().toLowerCase();
-  const rows = views
+  const rows = devices
     .filter((v) => !filter || v.display === filter)
-    .filter((v) => !q || [v.device.assetTag, v.device.serial, v.device.hostname].some((f) => f.toLowerCase().includes(q)))
-    .sort((a, b) => ORDER.indexOf(a.display) - ORDER.indexOf(b.display) || a.device.assetTag.localeCompare(b.device.assetTag));
+    .filter((v) => !q || [v.assetTag, v.serial, v.hostname].some((f) => f.toLowerCase().includes(q)))
+    .sort((a, b) => ORDER.indexOf(a.display) - ORDER.indexOf(b.display) || a.assetTag.localeCompare(b.assetTag));
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold">Fleet</h1>
-          <p className="text-sm text-ink-2">
-            {views.length} UMDs · {counts.ready} ready for the line
-          </p>
-        </div>
+      <header>
+        <h1 className="text-2xl font-semibold">Fleet</h1>
+        <p className="text-sm text-ink-2">
+          {devices.length} UMDs · {counts.ready} ready for the line
+        </p>
       </header>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5" aria-label="Readiness summary">
@@ -92,12 +93,21 @@ export function Fleet({ onOpen }: { onOpen: (id: string) => void }) {
           <StageLegend />
         </div>
 
+        {devices.length === 0 && (
+          <div className="space-y-2 px-4 py-10 text-center text-sm text-ink-2">
+            <p className="font-medium text-ink">No laptops enrolled yet.</p>
+            <p>
+              On a UMD, as Administrator: <code className="rounded bg-page px-1.5 py-0.5 font-mono text-xs">PreflightAgent.exe enroll --server {typeof window === 'undefined' ? 'https://…' : window.location.origin} --token &lt;token&gt;</code>
+            </p>
+          </div>
+        )}
+
         <ul className="divide-y divide-line sm:hidden">
           {rows.map((v) => (
-            <li key={v.device.id}>
-              <button type="button" onClick={() => onOpen(v.device.id)} className="w-full space-y-2 px-4 py-3 text-left">
+            <li key={v.id}>
+              <button type="button" onClick={() => onOpen(v.id)} className="w-full space-y-2 px-4 py-3 text-left">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-sm font-medium">{v.device.assetTag}</span>
+                  <span className="font-mono text-sm font-medium">{v.assetTag || v.hostname}</span>
                   <Badge tone={READINESS[v.display]} />
                 </div>
                 <div className="flex items-center gap-3">
@@ -105,8 +115,8 @@ export function Fleet({ onOpen }: { onOpen: (id: string) => void }) {
                   <span className="tabular text-xs text-ink-2">{v.completeCount}/5</span>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <FailingSummary v={v} />
-                  <span className="tabular shrink-0 text-xs text-ink-3">{timeAgo(v.device.lastSeenAt)}</span>
+                  <IssueSummary v={v} ruleName={ruleName} />
+                  <span className="tabular shrink-0 text-xs text-ink-3">{timeAgo(v.lastSeenAt)}</span>
                 </div>
               </button>
             </li>
@@ -114,53 +124,63 @@ export function Fleet({ onOpen }: { onOpen: (id: string) => void }) {
         </ul>
 
         <div className="hidden overflow-x-auto sm:block">
-          <table className="w-full min-w-[760px] text-left">
-            <thead className="text-xs uppercase tracking-wide text-ink-3">
-              <tr className="border-b border-line">
-                <th className="px-4 py-2.5 font-medium">Asset tag</th>
-                <th className="px-4 py-2.5 font-medium">Readiness</th>
-                <th className="w-56 px-4 py-2.5 font-medium">Stages</th>
-                <th className="px-4 py-2.5 font-medium">Open issues</th>
-                <th className="px-4 py-2.5 font-medium">Last seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((v) => (
-                <tr
-                  key={v.device.id}
-                  onClick={() => onOpen(v.device.id)}
-                  className="cursor-pointer border-b border-line last:border-0 hover:bg-raised"
-                >
-                  <td className="px-4 py-3">
-                    <div className="font-mono text-sm font-medium">{v.device.assetTag}</div>
-                    <div className="text-xs text-ink-3">{v.device.model}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={READINESS[v.display]} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <StageBar stages={v.stages} criticalStage={v.criticalStage} />
-                      <span className="tabular text-xs text-ink-2">{v.completeCount}/5</span>
-                    </div>
-                  </td>
-                  <td className="max-w-xs px-4 py-3">
-                    <FailingSummary v={v} />
-                  </td>
-                  <td className="tabular whitespace-nowrap px-4 py-3 text-sm text-ink-2">{timeAgo(v.device.lastSeenAt)}</td>
+          {devices.length > 0 && (
+            <table className="w-full min-w-[760px] text-left">
+              <thead className="text-xs uppercase tracking-wide text-ink-3">
+                <tr className="border-b border-line">
+                  <th className="px-4 py-2.5 font-medium">Asset tag</th>
+                  <th className="px-4 py-2.5 font-medium">Readiness</th>
+                  <th className="w-56 px-4 py-2.5 font-medium">Stages</th>
+                  <th className="px-4 py-2.5 font-medium">Open issues</th>
+                  <th className="px-4 py-2.5 font-medium">Last seen</th>
                 </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-sm text-ink-3">
-                    No devices match.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((v) => (
+                  <tr key={v.id} onClick={() => onOpen(v.id)} className="cursor-pointer border-b border-line last:border-0 hover:bg-raised">
+                    <td className="px-4 py-3">
+                      <div className="font-mono text-sm font-medium">{v.assetTag || v.hostname}</div>
+                      <div className="text-xs text-ink-3">{v.model}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge tone={READINESS[v.display]} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <StageBar stages={v.stages} criticalStage={v.criticalStage} />
+                        <span className="tabular text-xs text-ink-2">{v.completeCount}/5</span>
+                      </div>
+                    </td>
+                    <td className="max-w-xs px-4 py-3">
+                      <IssueSummary v={v} ruleName={ruleName} />
+                    </td>
+                    <td className="tabular whitespace-nowrap px-4 py-3 text-sm text-ink-2">{timeAgo(v.lastSeenAt)}</td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-10 text-center text-sm text-ink-3">
+                      No devices match.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
+    </div>
+  );
+}
+
+export function Fleet({ onOpen, rules }: { onOpen: (id: string) => void; rules: Rule[] }) {
+  const source = useSource();
+  const { data, error, loading } = usePoll(() => source.listDevices(), 10_000, [source]);
+  if (!data && loading) return <p className="text-sm text-ink-3">Loading fleet…</p>;
+  return (
+    <div className="space-y-4">
+      {error && <Banner>Can't reach the Preflight server: {error.message}. Showing last known data.</Banner>}
+      <FleetView devices={data ?? []} rules={rules} onOpen={onOpen} />
     </div>
   );
 }

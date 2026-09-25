@@ -1,0 +1,22 @@
+<!-- WinSW service definition (PLAN.md C5). Runs as LocalSystem, restarts on failure. -->
+<service>
+  <id>PreflightAgent</id>
+  <name>Preflight Agent</name>
+  <description>UMD post-imaging validation agent. Outbound HTTPS only; runs read-only checks and whitelisted fixes.</description>
+  <executable>%BASE%\PreflightAgent.exe</executable>
+  <arguments>service</arguments>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <onfailure action="restart" delay="5 min"/>
+  <resetfailure>1 hour</resetfailure>
+  <stoptimeout>30 sec</stoptimeout>
+  <logpath>%ProgramData%\Preflight\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>5120</sizeThreshold>
+    <keepFiles>3</keepFiles>
+  </log>
+  <!-- Corporate CA for the Preflight server's TLS cert (optional): uncomment and ship the PEM next to the exe. -->
+  <!-- <env name="NODE_EXTRA_CA_CERTS" value="%BASE%\corp-ca.pem"/> -->
+</service>

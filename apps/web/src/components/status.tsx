@@ -1,4 +1,4 @@
-import type { Readiness, ResultStatus, StageState } from '@umd/contracts';
+import type { DisplayReadiness, ResultStatus, StageState } from '@umd/contracts';
 import {
   AlertOctagon,
   AlertTriangle,
@@ -13,7 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-export type DisplayReadiness = Readiness | 'stale';
+export type { DisplayReadiness };
 
 interface Tone {
   label: string;

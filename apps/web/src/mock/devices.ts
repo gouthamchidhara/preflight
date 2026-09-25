@@ -3,7 +3,7 @@
  * TODO(T6): replaced by GET /api/v1/devices + /devices/:id/checklist.
  */
 import type { Attestation, Checkin, Result } from '@umd/contracts';
-import { MANUAL_ITEMS, RULES } from './catalog.js';
+import { DEFAULT_RULES as RULES, MANUAL_ITEMS } from '@umd/contracts';
 
 export interface Device {
   id: string;

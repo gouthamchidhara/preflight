@@ -1,68 +1,53 @@
-# UMD Validation
+# Preflight — UMD readiness
 
-Post-imaging validation stack for UMD rugged laptops (Panasonic Toughbook QJ0681xxxx).
-Replaces the paper checklist after SCCM imaging. Design lives in [PLAN.md](./PLAN.md). Laptop-day steps: [PHASE0.md](./PHASE0.md).
+Post-imaging validation for UMD rugged laptops (Panasonic, QJ0681xxxx). Replaces the paper checklist after SCCM imaging:
+an agent on each laptop runs the checks, a dashboard shows every laptop's readiness, and techs trigger whitelisted fixes and tick the manual steps.
 
-## Stack
-
-| Piece | Tech | Purpose |
-|---|---|---|
-| `apps/agent` | Node 22 SEA, TS, PowerShell 5.1 checks | Windows service on the UMD (Session 0, LocalSystem). Read-only checks + whitelisted fixes |
-| `apps/api` | Fastify, zod, Drizzle, Postgres | Check results, rules/policy, jobs, attestations, audit log |
-| `apps/web` | React, Vite | Fleet + device dashboard with Entra SSO |
-| `apps/mock-agent` | CLI | Fakes agents for dev/tests |
-| `packages/contracts` | zod | Shared schemas for agent, API, web |
-
-## Dashboard preview (mock data)
-
-```bash
-pnpm install && pnpm --filter @umd/contracts build
-pnpm --filter @umd/web dev      # http://localhost:5173
-```
+- Design: [PLAN.md](./PLAN.md)
+- Laptop day (one-liners): [PHASE0.md](./PHASE0.md)
+- Hosting the server: [HOSTING.md](./HOSTING.md)
 
 | Fleet | Device (4 TB missing) | Device (LSAPL fixes) |
 |---|---|---|
 | ![](docs/screenshots/1-fleet.png) | ![](docs/screenshots/2-device-not-ready-4tb.png) | ![](docs/screenshots/3-device-lsapl-fixes.png) |
 
-## Setup
+## Try it (any PC with Node 22 — no Docker, no database install)
 
 ```bash
-# Node 22+ and pnpm 9 required
-corepack enable
-pnpm install
-
-# Dev database (Postgres 16)
-docker compose up -d db
-
-pnpm build        # builds every workspace package
-pnpm test         # vitest suites
-pnpm db:migrate   # T3
-pnpm db:seed      # T3
+corepack enable && pnpm install
+pnpm build
+pnpm demo          # http://localhost:3000 — API + dashboard + 5 fake laptops
 ```
 
-## Dev
+## Pieces
+
+| Piece | What it is |
+|---|---|
+| `apps/agent` | `PreflightAgent.exe` (Node single executable). `check` runs everything locally, `service` is the background loop. Checks are `checks/*.ps1` (Windows PowerShell 5.1, read-only); fixes are `scripts/*.ps1` (whitelisted, back up first). `installer/` builds the exe + zip and installs the Windows service (WinSW). |
+| `apps/api` | Fastify API + serves the dashboard. Postgres in production, embedded PGlite otherwise. Migrations run on start. |
+| `apps/web` | React dashboard: fleet, per-device checklist, fixes, manual steps. `?mock` shows demo data. |
+| `apps/mock-agent` | Fake laptops for demos and tests. |
+| `packages/contracts` | Shared schemas, the check catalog, readiness logic. |
+| `golden/manifest.json` | Expected values from the reference laptop (hashes only, never secrets). |
+
+## Commands
 
 ```bash
-pnpm --filter @umd/web dev      # Vite on :5173
-pnpm --filter @umd/api dev      # T4
+pnpm test          # all unit + integration tests (PowerShell script tests need `pwsh`)
+pnpm lint
+pnpm build
+pnpm start         # API + dashboard on :3000 (env: see HOSTING.md)
+pnpm dev:api       # API with reload on :3000
+pnpm dev:web       # dashboard with hot reload on :5173 (proxies /api to :3000)
+pnpm agent:check   # run the agent's checks on this machine (Windows)
 ```
 
-## Repo layout
-
-```
-apps/agent        Windows service, checks/*.ps1, scripts/*.ps1, installer/
-apps/api          Fastify + Drizzle (drizzle/ = migrations)
-apps/web          React dashboard
-apps/mock-agent   Fake agent CLI
-packages/contracts zod schemas
-golden/manifest.json  expected values captured in Phase 0 (hashes only, never secrets)
-scripts/dev       local dev bootstrap (T5)
-tests/integration e2e smoke (T12)
-```
+Windows build of the agent: `powershell -File apps/agent/installer/build-exe.ps1` → `apps/agent/out/preflight-agent-win-x64.zip`.
+CI builds the same zip on every push (artifact **preflight-agent-win-x64**) and runs every check on a real Windows runner.
 
 ## Rules of the road (PLAN.md §0)
 
-- Never hard-code an expected value; use `golden/manifest.json` via policy.
-- `TBD(P0-x)` stays a placeholder until Phase 0 captures it.
-- Check scripts are **read-only** — the agent never partitions/formats disks or edits BIOS.
+- Never hard-code an expected value; it lives in `golden/manifest.json`. Unset values (`TBD…`) make checks report what they found as *needs human*.
+- Check scripts are **read-only**. The agent never partitions/formats disks or edits BIOS.
+- The agent only runs scripts bundled in its own install; the server can pick a script ID + validated params, nothing else.
 - No secrets in code, logs, results, evidence, DB or git. Compare hashes, not values.

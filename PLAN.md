@@ -447,3 +447,20 @@ Tasks run in order unless the dependencies say otherwise. Each task is one PR.
 5. SEA exe on a clean VM without Node: silent install, and a heartbeat appears within 1 min.
 6. 4 TB: on a real UMD, the agent reports correctly with no drive, then with the drive seated. A partitioned test drive → `disk.data.unconfigured` fails.
 7. Real UMD: agent verdicts match the paper checklist for every in-scope item.
+
+---
+
+## 12. As built (v0.3): differences from the plan above
+
+| Topic | Plan | Built | Why |
+|---|---|---|---|
+| Task status | T1–T17 | T1–T15 done. **T16** (buildstats scraper) waits for the page format (P0-4); **T17** is the pilot | — |
+| Script params | `-ParamsJson '<json>'` | base64 JSON in env `PREFLIGHT_PARAMS` | Windows command-line quoting mangles JSON |
+| DB layer | Drizzle + docker-compose | Plain SQL migrations (`apps/api/src/migrations.ts`, run on start); Postgres via `DATABASE_URL`, else embedded PGlite | No Docker or DB install needed for dev or pilot |
+| `command` check type | generic | removed; `umdConformance` is a dedicated script | Server policy must never run arbitrary commands on a UMD |
+| Rule context | implicit | `context: agent / server / human`; non-agent rules show `needs_human` until attested | Buildstats + GUI checks don't hang as "pending" |
+| Jobs | "one at a time" | one in flight per device; `dispatched` > 5 min → `timed_out` | — |
+| Fix scripts | delete/overwrite | move to `ProgramData\Preflight\backup\<ts>` first | Every fix is reversible |
+| `lsapl-patch-props`, `sccm-rerun-12650` | fix scripts | hint only | Needs a secret store (P0-16) / SCCM class (P0-8) |
+| Bootstrap token | "deleted after enroll" | Done; a re-imaged laptop re-enrolls by serial and keeps its history | — |
+| Evidence | redacted | redacted + 8 KB cap in the agent; app-props checks print hashes only | — |

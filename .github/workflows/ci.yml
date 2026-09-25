@@ -16,19 +16,76 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm test
+      - name: tests (PowerShell check scripts run under pwsh with mocked cmdlets)
+        run: pnpm test
       - run: pnpm build
       - name: golden manifest is valid JSON
         run: node -e "JSON.parse(require('fs').readFileSync('golden/manifest.json','utf8'))"
+      - name: smoke test on embedded PGlite
+        run: |
+          (cd apps/api && PORT=3000 DATA_DIR=$RUNNER_TEMP/pf BOOTSTRAP_TOKEN=ci-smoke-token-0123456789 LOG_LEVEL=warn node dist/index.js &)
+          for i in $(seq 1 30); do curl -sf localhost:3000/healthz && break; sleep 1; done
+          node tests/integration/smoke.mjs http://localhost:3000 ci-smoke-token-0123456789
 
-  probe-parse:
+  postgres-smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: preflight
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: smoke test on Postgres 16
+        env:
+          DATABASE_URL: postgresql://postgres:ci_only_password@localhost:5432/preflight
+        run: |
+          (cd apps/api && PORT=3000 BOOTSTRAP_TOKEN=ci-smoke-token-0123456789 LOG_LEVEL=warn node dist/index.js &)
+          for i in $(seq 1 30); do curl -sf localhost:3000/healthz && break; sleep 1; done
+          node tests/integration/smoke.mjs http://localhost:3000 ci-smoke-token-0123456789
+
+  windows-agent:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: probe.ps1 parses under Windows PowerShell 5.1
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @umd/contracts --filter @umd/api build
+      - name: agent tests under Windows PowerShell 5.1 (the UMD's PowerShell)
+        env:
+          PREFLIGHT_PWSH: powershell.exe
+        run: pnpm --filter @umd/agent test
+      - name: build PreflightAgent.exe + install zip
+        shell: powershell
+        run: ./apps/agent/installer/build-exe.ps1
+      - name: run every check on a real Windows machine
         shell: powershell
         run: |
-          $errs = $null
-          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\scripts\probe\probe.ps1", [ref]$null, [ref]$errs) | Out-Null
-          if ($errs) { $errs | ForEach-Object { Write-Error "$($_.Extent.StartLineNumber): $($_.Message)" }; exit 1 }
-          'probe.ps1 parses OK'
+          ./apps/agent/out/preflight-agent/PreflightAgent.exe check --out "$env:RUNNER_TEMP\report.json"
+          node tests/integration/validate-check-report.mjs "$env:RUNNER_TEMP\report.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preflight-agent-win-x64
+          path: apps/agent/out/preflight-agent-win-x64.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-check-report
+          path: ${{ runner.temp }}/report.json
+          if-no-files-found: ignore

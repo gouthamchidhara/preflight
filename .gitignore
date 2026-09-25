@@ -9,3 +9,6 @@ coverage/
 # Phase 0 probe output (serials, hostnames) — never commit
 PreflightProbe*/
 *.probe.zip
+dist-sea/
+data/
+data-demo/
