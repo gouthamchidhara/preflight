@@ -1,32 +1,34 @@
-// PLACEHOLDER — populated in Phase 0 laptop walkthrough (PLAN.md §10).
-// Values marked TBD(P0-x) stay placeholders until captured; never invent them (§0 rule 3).
-// This file holds hashes only, never secrets (§5.5, §0 rule 5).
 {
-  "capturedFrom": "TBD(P0-4)", // TODO(P0-4)
+  "$comment": "Golden values captured in Phase 0 (PLAN.md §5.5, §10). Hashes only, never secrets. 'TBD(P0-x)' = not captured yet.",
+  "capturedFrom": "TBD(P0-4)",
   "capturedAt": null,
   "assetTagPattern": "^QJ0681\\d{4}$",
-  "apps.required": [], // TODO(P0-4)
-  "desktop.icons": [], // TODO(P0-4): 24 entries
-  "os.build": "TBD", // TODO(P0-4)
+  "apps.required": [],
+  "desktop.icons": [],
+  "os.build": "TBD",
   "os.minUbr": 0,
-  "gpo.required": ["TBD"],
+  "gpo.required": [
+    "TBD"
+  ],
   "bios.version": {
-    "touch": "TBD(P0-11)", // TODO(P0-11)
-    "nontouch": "TBD(P0-11)" // TODO(P0-11)
+    "touch": "TBD(P0-11)",
+    "nontouch": "TBD(P0-11)"
   },
-  "bios.bootFirst": "TBD(P0-15)", // TODO(P0-15)
-  "wallpaper.sha256": "TBD(P0-9)", // TODO(P0-9)
+  "bios.bootFirst": "TBD(P0-15)",
+  "wallpaper.sha256": "TBD(P0-9)",
   "toolbox.minStamp": "20260629074759",
   "toolbox.parts": 6,
-  "ff.profileDir": "TBD(P0-7)", // TODO(P0-7)
-  "lsapl.connections.sha256": "TBD(P0-9)", // TODO(P0-9)
-  "lsapl.truststore.sha256": "TBD(P0-9)", // TODO(P0-9)
+  "ff.profileDir": "TBD(P0-7)",
+  "lsapl.connections.sha256": "TBD(P0-9)",
+  "lsapl.truststore.sha256": "TBD(P0-9)",
   "lsapl.appprops.keyHashes": {
-    "deviceLoginPassword": null,
-    "trustStorePassword": null
+    "deviceLoginPassword": "TBD(P0-9)",
+    "trustStorePassword": "TBD(P0-9)"
   },
-  "lsapl.logErrorPatterns": ["TBD(P0-14)"], // TODO(P0-14)
-  "airwall.serviceName": "TBD(P0-14)", // TODO(P0-14)
+  "lsapl.logErrorPatterns": [
+    "TBD(P0-14)"
+  ],
+  "airwall.serviceName": "TBD(P0-14)",
   "umdtools.allowedWarnings": [
     "Configure OS",
     "Install Firefox",
@@ -34,8 +36,14 @@
     "Install VPN",
     "Set Alternate IP"
   ],
-  "cell.apn": { "profileName": "AA FirstNet", "apn": "32871.fn" },
-  "disk.data": { "minBytes": 3800000000000, "maxBytes": 4100000000000 },
-  "net.groundHost": "TBD(P0-2)", // TODO(P0-2)
-  "nas.wallpaperDir": "TBD(P0-5)" // TODO(P0-5)
+  "cell.apn": {
+    "profileName": "AA FirstNet",
+    "apn": "32871.fn"
+  },
+  "disk.data": {
+    "minBytes": 3800000000000,
+    "maxBytes": 4100000000000
+  },
+  "net.groundHost": "TBD(P0-2)",
+  "nas.wallpaperDir": "TBD(P0-5)"
 }

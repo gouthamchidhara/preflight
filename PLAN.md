@@ -415,7 +415,7 @@ Tasks run in order unless the dependencies say otherwise. Each task is one PR.
 
 ## 10. Phase 0: laptop walkthrough (human, before T10–T13)
 
-**Technique:** for any setting whose storage location is unknown, snapshot before and after doing the manual step, then diff. Snapshot = `reg export` of HKLM\SOFTWARE, the Mechanic hive and `HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers`, plus a file listing with hashes of the relevant folders. Save the outputs to `golden/fixtures/`.
+**How:** follow [PHASE0.md](./PHASE0.md) (one-line steps). `scripts/probe/probe.ps1` is a read-only snapshot, run with `-Label before-x` / `-Label after-x` around each manual step, then diff. Probe output stays off git. Only the derived golden values are committed.
 
 | Key | Question | How |
 |---|---|---|

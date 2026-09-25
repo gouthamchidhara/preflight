@@ -1,7 +1,7 @@
 # UMD Validation
 
 Post-imaging validation stack for UMD rugged laptops (Panasonic Toughbook QJ0681xxxx).
-Replaces the paper checklist after SCCM imaging. Design lives in [PLAN.md](./PLAN.md).
+Replaces the paper checklist after SCCM imaging. Design lives in [PLAN.md](./PLAN.md). Laptop-day steps: [PHASE0.md](./PHASE0.md).
 
 ## Stack
 

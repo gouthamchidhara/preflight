@@ -5,3 +5,7 @@ coverage/
 *.log
 .env
 .env.local
+
+# Phase 0 probe output (serials, hostnames) — never commit
+PreflightProbe*/
+*.probe.zip

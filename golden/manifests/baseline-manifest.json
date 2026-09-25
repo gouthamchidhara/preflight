@@ -1,5 +1,0 @@
-{
-  "$comment": "Baseline inventory manifest placeholder (PLAN.md T8). Replaced by baseline-manifest.json when the golden inventory is generated.",
-  "version": "0.1.0",
-  "goldenInventory": null
-}
