@@ -12,3 +12,6 @@ PreflightProbe*/
 dist-sea/
 data/
 data-demo/
+
+# Local PostgreSQL installation and database files
+tools/
