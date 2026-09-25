@@ -4,7 +4,8 @@ $P = Get-Params
 
 Invoke-Check {
     $dirs = @(Get-FirefoxProfileDirs $P.user $P.profileDir)
-    $plugin = @(Get-ChildItem 'C:\Program Files (x86)\Adobe', 'C:\Program Files\Adobe' -Recurse -Filter nppdf32.dll -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $adobe = Get-ExistingPaths @('C:\Program Files (x86)\Adobe', 'C:\Program Files\Adobe')
+    $plugin = @(if ($adobe.Count) { Get-ChildItem -LiteralPath $adobe -Recurse -Filter nppdf32.dll -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } })
     $want = @{}
     foreach ($prop in $P.prefs.PSObject.Properties) { $want[$prop.Name] = "$($prop.Value)" }
     $expected = ($want.Keys | Sort-Object | ForEach-Object { "$_=$($want[$_])" }) -join ', '

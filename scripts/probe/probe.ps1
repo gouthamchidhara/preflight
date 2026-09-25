@@ -76,6 +76,9 @@ function Get-RegTree([string]$Path) {
   }
 }
 
+# Windows PowerShell 5.1 quirk: `Get-ChildItem <missing dir> -Recurse` crawls the parent. Search only what exists.
+function Get-ExistingPaths([string[]]$Paths) { @($Paths | Where-Object { $_ -and (Test-Path -LiteralPath $_) }) }
+
 function Get-Sha256([string]$Text) {
   $sha = [Security.Cryptography.SHA256]::Create()
   $bytes = $sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Text))
@@ -153,7 +156,7 @@ try {
   }
   Save-Json 'wallpaper' {
     $dir = "$mechProfile\AppData\Roaming\Microsoft\Windows\Themes"
-    Get-ChildItem -Path $dir -Recurse -File -Force -ErrorAction SilentlyContinue | ForEach-Object {
+    Get-ExistingPaths @($dir) | Get-ChildItem -Recurse -File -Force -ErrorAction SilentlyContinue | ForEach-Object {
       [pscustomobject]@{ Path = $_.FullName; Size = $_.Length; LastWrite = $_.LastWriteTime
         Sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() } }
   }
@@ -188,7 +191,7 @@ try {
       [pscustomobject]@{ Key = $_.Key; ValueSha256 = $h } }
   }
   Save-Json 'lsapl-logs' {
-    Get-ChildItem 'C:\Boeing\LSAPL-SMT' -Recurse -File -Include *.log, *.txt -ErrorAction SilentlyContinue |
+    Get-ExistingPaths @('C:\Boeing\LSAPL-SMT') | Get-ChildItem -Recurse -File -Include *.log, *.txt -ErrorAction SilentlyContinue |
       Sort-Object LastWriteTime -Descending | Select-Object -First 20 FullName, Length, LastWriteTime
   }
   Save-Json 'services' {
@@ -197,11 +200,11 @@ try {
       Select-Object Name, DisplayName, Status, StartType
   }
   Save-Json 'firefox' {
-    $exes = Get-ChildItem 'C:\Program Files', 'C:\Program Files (x86)', 'C:\787' -Recurse -Depth 4 `
+    $exes = Get-ExistingPaths @('C:\Program Files', 'C:\Program Files (x86)', 'C:\787') | Get-ChildItem -Recurse -Depth 4 `
       -Filter firefox.exe -ErrorAction SilentlyContinue |
       ForEach-Object { [pscustomobject]@{ Path = $_.FullName; Version = $_.VersionInfo.ProductVersion } }
     $profileRoots = @("$mechProfile\AppData\Roaming\Mozilla\Firefox\Profiles", 'C:\787')
-    $profiles = Get-ChildItem $profileRoots -Recurse -Depth 5 -Filter prefs.js -ErrorAction SilentlyContinue |
+    $profiles = Get-ExistingPaths $profileRoots | Get-ChildItem -Recurse -Depth 5 -Filter prefs.js -ErrorAction SilentlyContinue |
       ForEach-Object {
         $d = $_.DirectoryName
         $pick = { param($f) if (Test-Path $f) { Select-String -Path $f -Pattern 'pdf|plugin\.state|nppdf|acrobat' |
@@ -213,7 +216,7 @@ try {
           Handlers   = @(& $pick "$d\handlers.json")
           MimeTypes  = @(& $pick "$d\mimeTypes.rdf")
         } }
-    $npapi = Get-ChildItem 'C:\Program Files\Adobe', 'C:\Program Files (x86)\Adobe' -Recurse `
+    $npapi = Get-ExistingPaths @('C:\Program Files\Adobe', 'C:\Program Files (x86)\Adobe') | Get-ChildItem -Recurse `
       -Filter nppdf32.dll -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
     [pscustomobject]@{ Executables = @($exes); Profiles = @($profiles); AcrobatPlugin = @($npapi)
       PublicDesktopFirefoxLnk = @(Get-ChildItem 'C:\Users\Public\Desktop' -Filter '*firefox*.lnk' -ErrorAction SilentlyContinue).Name }
@@ -237,7 +240,7 @@ try {
     }
   }
   Save-Json 'umd-tools' {
-    Get-ChildItem 'C:\Program Files', 'C:\Program Files (x86)', 'C:\Boeing' -Directory -Recurse -Depth 2 `
+    Get-ExistingPaths @('C:\Program Files', 'C:\Program Files (x86)', 'C:\Boeing') | Get-ChildItem -Directory -Recurse -Depth 2 `
       -ErrorAction SilentlyContinue | Where-Object Name -match '(?i)umd|conformance' |
       ForEach-Object { [pscustomobject]@{ Dir = $_.FullName
         Exes = @(Get-ChildItem $_.FullName -Filter *.exe -ErrorAction SilentlyContinue).Name } }

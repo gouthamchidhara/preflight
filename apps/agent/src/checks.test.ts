@@ -88,6 +88,8 @@ describe.skipIf(!hasPwsh)('PowerShell check scripts', () => {
     for (const rule of rules) {
       const { json } = (await ps(`${rule.type}.ps1`, rule.params));
       expect(['pass', 'fail', 'error', 'skip', 'needs_human'], `${rule.id}`).toContain(json.status);
+      // print what each check reports on this machine (useful on the Windows runner)
+      console.log(`${rule.id.padEnd(24)} ${String(json.status).padEnd(11)} ${String(json.actual ?? '').slice(0, 120)}`);
     }
   }, 300_000);
 
@@ -176,8 +178,10 @@ describe.skipIf(!hasPwsh)('PowerShell check scripts', () => {
       writeFileSync(join(dir, 'dst.jks'), 'good');
       const golden = 'sha256:' + createHash('sha256').update('good').digest('hex');
       const base = { path: join(dir, 'dst.jks'), source: join(dir, 'src.jks') };
-      expect((await ps('fileHash.ps1', { ...base, sha256: 'TBD(P0-9)' })).json).toMatchObject({ status: 'pass' });
-      expect((await ps('fileHash.ps1', { ...base, sha256: golden })).json).toMatchObject({ status: 'pass' });
+      const r1 = (await ps('fileHash.ps1', { ...base, sha256: 'TBD(P0-9)' })).json;
+      expect(r1.status, JSON.stringify(r1)).toBe('pass');
+      const r2 = (await ps('fileHash.ps1', { ...base, sha256: golden })).json;
+      expect(r2.status, JSON.stringify(r2)).toBe('pass');
       writeFileSync(join(dir, 'dst.jks'), 'tampered');
       expect((await ps('fileHash.ps1', { ...base, sha256: golden })).json.status).toBe('fail');
       expect((await ps('fileHash.ps1', { ...base, path: join(dir, 'missing.jks'), sha256: golden })).json).toMatchObject({ status: 'fail', actual: 'file missing' });

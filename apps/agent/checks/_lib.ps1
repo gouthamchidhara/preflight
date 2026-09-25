@@ -54,6 +54,12 @@ function Test-Tbd($v) {
     return $false
 }
 
+# Only paths that exist. Windows PowerShell 5.1 quirk: `Get-ChildItem <missing dir> -Recurse` does not
+# fail; it treats the name as a filter and crawls the whole parent (e.g. all of C:\Program Files).
+function Get-ExistingPaths([string[]]$Paths) {
+    return @($Paths | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
+}
+
 function Get-UserProfilePath([string]$User) {
     try {
         $sid = (Get-LocalUser -Name $User -ErrorAction Stop).SID.Value
@@ -166,10 +172,8 @@ function Get-FirefoxProfileDirs([string]$User, $ProfileDir) {
     if (-not (Test-Tbd $ProfileDir)) { return @((Expand-PfPath $ProfileDir)) }
     $roots = @((Join-Path (Get-UserProfilePath $User) 'AppData\Roaming\Mozilla\Firefox\Profiles'), 'C:\787')
     $dirs = @()
-    foreach ($r in $roots) {
-        if (Test-Path $r) {
-            $dirs += Get-ChildItem -Path $r -Recurse -Depth 5 -Filter prefs.js -ErrorAction SilentlyContinue | ForEach-Object { $_.DirectoryName }
-        }
+    foreach ($r in (Get-ExistingPaths $roots)) {
+        $dirs += Get-ChildItem -LiteralPath $r -Recurse -Depth 5 -Filter prefs.js -ErrorAction SilentlyContinue | ForEach-Object { $_.DirectoryName }
     }
     return @($dirs | Select-Object -Unique)
 }
