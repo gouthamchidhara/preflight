@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preflight Agent Management Report</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1d2935;
+      --muted: #5b6875;
+      --line: #d7dee5;
+      --accent: #0d6174;
+      --accent-soft: #e7f3f5;
+      --paper: #ffffff;
+      --canvas: #edf1f3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 15px/1.6 Georgia, "Times New Roman", serif;
+    }
+    .page {
+      width: min(100% - 32px, 960px);
+      margin: 32px auto;
+      padding: 56px 68px;
+      background: var(--paper);
+      box-shadow: 0 8px 28px rgba(29, 41, 53, .12);
+    }
+    header { border-bottom: 4px solid var(--accent); padding-bottom: 28px; margin-bottom: 32px; }
+    .kicker { margin: 0 0 8px; color: var(--accent); font: 700 12px/1.2 Arial, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+    h1, h2, h3 { font-family: Arial, sans-serif; line-height: 1.2; }
+    h1 { margin: 0 0 20px; font-size: 36px; letter-spacing: -.02em; }
+    h2 { margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); font-size: 23px; color: var(--accent); }
+    h3 { margin: 24px 0 8px; font-size: 17px; }
+    p { margin: 0 0 14px; }
+    ul, ol { margin: 8px 0 18px; padding-left: 25px; }
+    li { margin: 4px 0; }
+    .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+    .meta div { padding: 12px 14px; background: var(--accent-soft); border-left: 3px solid var(--accent); }
+    .meta strong { display: block; margin-bottom: 2px; font: 700 11px Arial, sans-serif; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .assessment { margin: 22px 0; padding: 17px 20px; background: var(--accent-soft); border: 1px solid #b9dce2; border-radius: 4px; }
+    .assessment strong { display: block; margin-bottom: 3px; font-family: Arial, sans-serif; }
+    .previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 18px 0 30px; }
+    .preview { margin: 0; break-inside: avoid; }
+    .preview-wide { grid-column: 1 / -1; }
+    .preview img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 3px; }
+    .preview figcaption { margin-top: 7px; color: var(--muted); font: 12px/1.4 Arial, sans-serif; }
+    code { padding: 1px 4px; background: #f0f3f5; font: 0.9em Consolas, monospace; }
+    a { color: var(--accent); }
+    footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    @media (max-width: 680px) {
+      .page { width: 100%; margin: 0; padding: 32px 24px; box-shadow: none; }
+      h1 { font-size: 29px; }
+      .meta { grid-template-columns: 1fr; }
+      .previews { grid-template-columns: 1fr; }
+      .preview-wide { grid-column: auto; }
+    }
+    @media print {
+      @page { size: A4; margin: 16mm; }
+      body { background: #fff; font-size: 10.5pt; }
+      .page { width: auto; margin: 0; padding: 0; box-shadow: none; }
+      h2 { break-after: avoid; }
+      h3 { break-after: avoid; }
+      .previews { grid-template-columns: 1fr 1fr; }
+      .preview-wide { grid-column: 1 / -1; }
+      li, p { orphans: 3; widows: 3; }
+      a { color: inherit; text-decoration: none; }
+      footer { break-before: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="kicker">Management Report</p>
+      <h1>Preflight Agent</h1>
+      <p>UMD post-imaging validation platform</p>
+      <div class="meta">
+        <div><strong>Report date</strong>2026-09-28</div>
+        <div><strong>Project</strong>Preflight Agent / UMD validation</div>
+        <div><strong>Current revision</strong><code>c21e513</code> on <code>main</code></div>
+      </div>
+    </header>
+
+    <h2>Executive Summary</h2>
+    <p>Preflight Agent is a post-imaging validation platform for UMD Panasonic rugged laptops. It replaces a paper checklist with three connected capabilities:</p>
+    <ul>
+      <li>A Windows agent that inspects laptop state after SCCM imaging.</li>
+      <li>An API that stores results, calculates readiness, manages policy, and records audit history.</li>
+      <li>A web dashboard that lets technicians monitor devices, review failed checks, attest manual steps, request re-checks, and run approved fixes.</li>
+    </ul>
+    <p>The project has reached a functional v0.3 vertical slice. The core monorepo, shared contracts, API, dashboard, mock fleet, agent runner, check scripts, remediation controls, packaging path, security controls, and automated test structure are in place. Remaining work is primarily operational validation: capture the full reference-laptop baseline, confirm environment-specific dependencies, complete buildstats integration, and run the pilot against real UMD devices.</p>
+    <div class="assessment"><strong>Management assessment</strong>Suitable for continued pilot preparation and controlled demonstration; not yet ready for unrestricted production rollout.</div>
+
+    <h2>Application Preview</h2>
+    <p>The screenshots below show the current dashboard experience across fleet monitoring, device validation, remediation, responsive layout, and completed readiness states.</p>
+    <div class="previews">
+      <figure class="preview preview-wide">
+        <img src="screenshots/1-fleet.png" alt="Preflight fleet dashboard showing device readiness status">
+        <figcaption>Fleet overview with readiness status and stage progress.</figcaption>
+      </figure>
+      <figure class="preview">
+        <img src="screenshots/2-device-not-ready-4tb.png" alt="Device detail showing a failed 4 TB drive validation check">
+        <figcaption>Device detail highlighting a failed 4 TB drive check.</figcaption>
+      </figure>
+      <figure class="preview">
+        <img src="screenshots/3-device-lsapl-fixes.png" alt="Device detail showing LSAPL remediation controls">
+        <figcaption>Controlled remediation options for LSAPL checks.</figcaption>
+      </figure>
+      <figure class="preview">
+        <img src="screenshots/4-device-ready.png" alt="Device detail showing a ready laptop">
+        <figcaption>Ready device state after validation is complete.</figcaption>
+      </figure>
+      <figure class="preview">
+        <img src="screenshots/5-fleet-dark.png" alt="Preflight fleet dashboard in dark theme">
+        <figcaption>Fleet view in dark theme.</figcaption>
+      </figure>
+      <figure class="preview preview-wide">
+        <img src="screenshots/7-live-fix-succeeded.png" alt="Device detail showing a successful live fix">
+        <figcaption>Successful live fix with the resulting job status.</figcaption>
+      </figure>
+    </div>
+
+    <h2>Business Use Case</h2>
+    <p>After SCCM imaging, technicians must validate each UMD laptop across configuration, hardware, BIOS, and registration. Preflight replaces the paper checklist with one fleet view showing readiness, failed checks, manual actions, evidence, and approved fixes.</p>
+    <p>It validates state only. It does not replace SCCM, run arbitrary commands, change BIOS settings, partition disks, or format drives.</p>
+
+    <h2>What Has Been Delivered</h2>
+    <ul>
+      <li>Platform foundation: TypeScript monorepo, shared contracts, API, database migrations, embedded pilot database, production PostgreSQL support, and repeatable demo fleet.</li>
+      <li>Windows agent: service packaging, secure enrollment, periodic check-in, offline queueing, structured PowerShell checks, and SCCM deployment path.</li>
+      <li>API and governance: readiness tracking, role-based access, attestations, policy management, job lifecycle, audit history, rate limiting, and redacted evidence.</li>
+      <li>Dashboard: fleet readiness, device checklists, stage re-checks, technician attestations, approved fixes, and live/mock operating modes.</li>
+    </ul>
+
+    <h2>Current Architecture</h2>
+    <p>A Windows service runs bundled read-only checks and sends outbound HTTPS results to the API. The API stores results and calculates readiness; the role-protected dashboard presents fleet status and technician actions. Local queueing supports temporary connectivity loss. Expected values come from the golden manifest, with secrets excluded from records.</p>
+
+    <h2>Progress Against Plan</h2>
+    <p>T1-T15 are recorded complete in v0.3, covering the platform, agent, API, dashboard, checks, packaging, and remediation framework.</p>
+    <p>Remaining: T16 buildstats integration, T17 real-device pilot, and completion of Phase 0 values currently marked <code>TBD</code>. Non-touch BIOS baseline is captured; other production values still need confirmation.</p>
+
+    <h2>Operational Value</h2>
+    <p>Expected benefit: faster and more consistent validation, earlier fault detection, fewer technician errors, clear ownership of manual work, and auditable fleet readiness.</p>
+
+    <h2>Risks and Dependencies</h2>
+    <p>Main risks are incomplete baseline values and unverified real hardware behavior. Production also depends on corporate TLS/networking, Entra setup, PostgreSQL ownership, NAS access, and an approved secret store. Full build, test, lint, and Windows checks remain required before pilot approval.</p>
+
+    <h2>Recommended Next Steps</h2>
+    <p>Complete the reference-laptop baseline, resolve environment dependencies, finish T16, run CI and clean-VM checks, then execute T17 on one or two UMD laptops alongside the paper checklist. Review mismatches with operations and security before enabling fixes.</p>
+
+    <h2>Decision Requested</h2>
+    <p>Approve continued work toward a controlled pilot, subject to completion of the Phase 0 baseline and security/environment dependency review. Do not approve broad production deployment until real-device comparison confirms that automated results match the approved checklist and all remaining <code>TBD</code> values have an owner and resolution.</p>
+
+    <footer>Preflight Agent management report · Prepared from repository documentation and current implementation state</footer>
+  </main>
+</body>
+</html>
