@@ -1,23 +1,16 @@
 import { useEffect, useState } from 'react';
 import { STAGES, type AttestationView, type DeviceDetail, type JobView, type Result, type Rule, type Stage } from '@umd/contracts';
-import { ArrowLeft, Check, Copy, Network, Plug, RefreshCw, Signal, Wrench } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ClipboardCheck, Copy, History, ListChecks, Network, Plug, RefreshCw, Signal, Wrench } from 'lucide-react';
 import { STAGE_LABEL, show, timeAgo } from '../lib/format.js';
 import { usePoll } from '../lib/usePoll.js';
 import { useSource } from '../lib/context.js';
+import { openChecks, rowState } from '../lib/ruleState.js';
 import { Badge, READINESS, RESULT, STAGE_STATE } from '../components/status.js';
 import { StageBar } from '../components/StageBar.js';
 import { Banner } from '../components/Banner.js';
 import { NoteDialog } from '../components/NoteDialog.js';
+import { Tabs } from '../components/Tabs.js';
 import type { RunSummary } from '../lib/source.js';
-
-type RowState = keyof typeof RESULT;
-
-function rowState(result: Result | undefined, attested: boolean): RowState {
-  if (attested) return 'attested';
-  if (!result) return 'pending';
-  if (result.status === 'skip' && result.skipReason === 'precondition') return 'pending';
-  return result.status;
-}
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -61,6 +54,28 @@ const JOB_TONE: Record<JobView['status'], string> = {
   failed: 'text-critical-ink',
   timed_out: 'text-critical-ink',
 };
+
+function JobList({ jobs, title }: { jobs: JobView[]; title: string }) {
+  if (jobs.length === 0) return null;
+  return (
+    <section className="rounded-xl border border-line bg-surface">
+      <h2 className="border-b border-line px-4 py-3 text-sm font-medium text-ink-2">{title}</h2>
+      <ul className="divide-y divide-line text-sm">
+        {jobs.slice(0, 20).map((j) => (
+          <li key={j.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2">
+            <span>
+              <span className="font-mono text-xs">{j.scriptId}</span>
+              {j.ruleId && <span className="text-ink-3"> for {j.ruleId}</span>}
+              <span className="text-ink-3"> · {j.createdBy} · {timeAgo(j.createdAt)}</span>
+            </span>
+            <span className={`font-medium ${JOB_TONE[j.status]}`}>{j.status.replace('_', ' ')}</span>
+            {(j.stdout || j.stderr) && <details className="w-full text-xs"><summary className="cursor-pointer text-ink-3">Show output</summary><pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-page p-2 font-mono text-ink-2">{j.stdout}{j.stderr ? `\n${j.stderr}` : ''}</pre></details>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function RuleRow({ rule, result, attestation, busy, pending, onAttest, onRevoke, onFix, onRecheck }: {
   rule: Rule;
@@ -148,11 +163,16 @@ export interface DeviceActions {
   recheckRule: (ruleId: string) => void;
 }
 
+type DeviceTab = 'checks' | 'fixes' | 'manual' | 'history';
+
 export function DeviceView({ d, actions, onBack, optimistic = {}, pendingRuns = new Set<string>(), runs = [] }: { d: DeviceDetail; actions: DeviceActions; onBack: () => void; optimistic?: Record<string, boolean>; pendingRuns?: Set<string>; runs?: RunSummary[] }) {
+  const [tab, setTab] = useState<DeviceTab>('checks');
   const [issuesOnly, setIssuesOnly] = useState(false);
   const byRule = new Map(d.results.map((r) => [r.ruleId, r]));
   const attByRule = new Map(d.attestations.filter((a) => a.ruleId).map((a) => [a.ruleId!, a]));
   const attByItem = new Map(d.attestations.filter((a) => a.itemId).map((a) => [a.itemId!, a]));
+  const open = openChecks(d);
+  const openManual = d.manualItems.filter((i) => !attByItem.has(i.id));
 
   return (
     <div className="space-y-6">
@@ -191,7 +211,7 @@ export function DeviceView({ d, actions, onBack, optimistic = {}, pendingRuns = 
           <StageBar stages={d.stages} criticalStage={d.criticalStage} />
           <div className="mt-2 grid grid-cols-5 gap-0.5">
             {STAGES.map((s) => (
-              <a key={s} href={`#stage-${s}`} onClick={(e) => { e.preventDefault(); document.getElementById(`stage-${s}`)?.scrollIntoView({ behavior: 'smooth' }); }} className="min-w-0 hover:underline">
+              <a key={s} href={`#stage-${s}`} onClick={(e) => { e.preventDefault(); setTab('checks'); requestAnimationFrame(() => document.getElementById(`stage-${s}`)?.scrollIntoView({ behavior: 'smooth' })); }} className="min-w-0 hover:underline">
                 <span className="block truncate text-sm text-ink">{STAGE_LABEL[s]}</span>
                 <Badge tone={STAGE_STATE[d.stages[s]]} size="xs" />
               </a>
@@ -206,56 +226,38 @@ export function DeviceView({ d, actions, onBack, optimistic = {}, pendingRuns = 
         </dl>
       </section>
 
-      {d.jobs.length > 0 && (
-        <section className="rounded-xl border border-line bg-surface">
-          <h2 className="border-b border-line px-4 py-3 text-sm font-medium text-ink-2">Recent fixes</h2>
-          <ul className="divide-y divide-line text-sm">
-            {d.jobs.slice(0, 10).map((j) => (
-              <li key={j.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-2">
-                <span>
-                  <span className="font-mono text-xs">{j.scriptId}</span>
-                  {j.ruleId && <span className="text-ink-3"> for {j.ruleId}</span>}
-                  <span className="text-ink-3"> · {j.createdBy} · {timeAgo(j.createdAt)}</span>
-                </span>
-                <span className={`font-medium ${JOB_TONE[j.status]}`}>{j.status.replace('_', ' ')}</span>
-                {(j.stdout || j.stderr) && <details className="w-full text-xs"><summary className="cursor-pointer text-ink-3">Show output</summary><pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-page p-2 font-mono text-ink-2">{j.stdout}{j.stderr ? `\n${j.stderr}` : ''}</pre></details>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <Tabs
+        label="Device sections"
+        active={tab}
+        onSelect={setTab}
+        tabs={[
+          { key: 'checks' as DeviceTab, label: 'Checks', icon: ListChecks, count: d.rules.length },
+          { key: 'fixes' as DeviceTab, label: 'Fixes', icon: Wrench, count: open.length },
+          { key: 'manual' as DeviceTab, label: 'Manual steps', icon: ClipboardCheck, count: openManual.length },
+          { key: 'history' as DeviceTab, label: 'History', icon: History, count: d.jobs.length + runs.length },
+        ]}
+      />
 
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Checklist</h2>
-        <label className="inline-flex items-center gap-2 text-sm text-ink-2">
-          <input type="checkbox" checked={issuesOnly} onChange={(e) => setIssuesOnly(e.target.checked)} className="accent-accent" />
-          Issues only
-        </label>
-      </div>
-
-      {runs.length > 0 && <section className="rounded-xl border border-line bg-surface"><h2 className="border-b border-line px-4 py-3 text-sm font-medium text-ink-2">Recent check runs</h2><ul className="divide-y divide-line text-sm">{runs.slice(0, 10).map((run) => <li key={run.id} className="flex flex-wrap justify-between gap-2 px-4 py-2"><span>{run.trigger}{run.stage ? ` · ${STAGE_LABEL[run.stage as Stage] ?? run.stage}` : ' · all stages'}</span><span className="text-ink-3">{timeAgo(run.finishedAt)}</span></li>)}</ul></section>}
-
-      {STAGES.map((stage: Stage) => {
-        const rules = d.rules.filter((r) => r.stage === stage).filter((r) => {
-          if (!issuesOnly) return true;
-          const st = rowState(byRule.get(r.id), attByRule.has(r.id));
-          return st !== 'pass' && st !== 'attested' && st !== 'skip';
-        });
-        const items = d.manualItems.filter((i) => i.stage === stage).filter((i) => !issuesOnly || !attByItem.has(i.id));
-        if (issuesOnly && rules.length === 0 && items.length === 0) return null;
-        return (
-          <section key={stage} id={`stage-${stage}`} className="overflow-hidden rounded-xl border border-line bg-surface">
-            <header className="flex items-center justify-between border-b border-line px-4 py-3">
-              <h3 className="font-semibold">{STAGE_LABEL[stage]}</h3>
-              <div className="flex items-center gap-3"><Badge tone={STAGE_STATE[d.stages[stage]]} />{stage !== 'register' && <button type="button" onClick={() => actions.runStage(stage)} disabled={actions.busy || pendingRuns.has(stage)} className="rounded-lg border border-line px-2.5 py-1 text-xs text-ink-2 hover:border-accent hover:text-ink disabled:opacity-50">{pendingRuns.has(stage) ? 'Queued…' : 'Run stage'}</button>}</div>
-            </header>
-            {rules.length > 0 && (
+      {tab === 'fixes' && (
+        <div className="space-y-4">
+          {open.length === 0 ? (
+            <div className="rounded-xl border border-line bg-surface px-4 py-12 text-center">
+              <CheckCircle2 size={28} className="mx-auto text-good-ink" aria-hidden />
+              <p className="mt-2 font-medium">Nothing to fix.</p>
+              <p className="text-sm text-ink-2">Every automated check on this laptop passed or is attested.</p>
+            </div>
+          ) : (
+            <section className="overflow-hidden rounded-xl border border-line bg-surface">
+              <header className="flex items-center justify-between border-b border-line px-4 py-3">
+                <h2 className="font-semibold">Open checks</h2>
+                <span className="text-sm text-ink-3">{open.length} needing action</span>
+              </header>
               <ul className="divide-y divide-line">
-                {rules.map((rule) => (
+                {open.map(({ rule, result }) => (
                   <RuleRow
                     key={rule.id}
                     rule={rule}
-                    result={byRule.get(rule.id)}
+                    result={result}
                     attestation={attByRule.get(rule.id)}
                     busy={actions.busy}
                     pending={pendingRuns.has(rule.id)}
@@ -266,11 +268,24 @@ export function DeviceView({ d, actions, onBack, optimistic = {}, pendingRuns = 
                   />
                 ))}
               </ul>
-            )}
-            {items.length > 0 && (
-              <div className="border-t border-line bg-page/40 px-4 py-3">
-                <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-3">Manual steps</h4>
-                <ul className="grid gap-1.5 sm:grid-cols-2">
+            </section>
+          )}
+          <JobList jobs={d.jobs} title="Recent fixes" />
+        </div>
+      )}
+
+      {tab === 'manual' && (
+        <div className="space-y-4">
+          {STAGES.map((stage: Stage) => {
+            const items = d.manualItems.filter((i) => i.stage === stage);
+            if (items.length === 0) return null;
+            return (
+              <section key={stage} className="overflow-hidden rounded-xl border border-line bg-surface">
+                <header className="flex items-center justify-between border-b border-line px-4 py-3">
+                  <h3 className="font-semibold">{STAGE_LABEL[stage]}</h3>
+                  <Badge tone={STAGE_STATE[d.stages[stage]]} />
+                </header>
+                <ul className="grid gap-1.5 px-4 py-3 sm:grid-cols-2">
                   {items.map((item) => {
                     const a = attByItem.get(item.id);
                     const checked = optimistic[item.id] ?? Boolean(a);
@@ -291,11 +306,88 @@ export function DeviceView({ d, actions, onBack, optimistic = {}, pendingRuns = 
                     );
                   })}
                 </ul>
-              </div>
-            )}
-          </section>
-        );
-      })}
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'history' && (
+        <div className="space-y-4">
+          {runs.length > 0 && (
+            <section className="rounded-xl border border-line bg-surface">
+              <h2 className="border-b border-line px-4 py-3 text-sm font-medium text-ink-2">Recent check runs</h2>
+              <ul className="divide-y divide-line text-sm">
+                {runs.slice(0, 10).map((run) => (
+                  <li key={run.id} className="flex flex-wrap justify-between gap-2 px-4 py-2">
+                    <span>
+                      {run.trigger}
+                      {run.stage ? ` · ${STAGE_LABEL[run.stage as Stage] ?? run.stage}` : ' · all stages'}
+                    </span>
+                    <span className="text-ink-3">{timeAgo(run.finishedAt)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <JobList jobs={d.jobs} title="Fix jobs" />
+          {runs.length === 0 && d.jobs.length === 0 && <p className="text-sm text-ink-3">Nothing has run on this laptop yet.</p>}
+        </div>
+      )}
+
+      {tab === 'checks' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Checklist</h2>
+            <label className="inline-flex items-center gap-2 text-sm text-ink-2">
+              <input type="checkbox" checked={issuesOnly} onChange={(e) => setIssuesOnly(e.target.checked)} className="accent-accent" />
+              Issues only
+            </label>
+          </div>
+
+          {STAGES.map((stage: Stage) => {
+            const rules = d.rules
+              .filter((r) => r.stage === stage)
+              .filter((r) => {
+                if (!issuesOnly) return true;
+                const st = rowState(byRule.get(r.id), attByRule.has(r.id));
+                return st !== 'pass' && st !== 'attested' && st !== 'skip';
+              });
+            if (rules.length === 0) return null;
+            return (
+              <section key={stage} id={`stage-${stage}`} className="overflow-hidden rounded-xl border border-line bg-surface">
+                <header className="flex items-center justify-between border-b border-line px-4 py-3">
+                  <h3 className="font-semibold">{STAGE_LABEL[stage]}</h3>
+                  <div className="flex items-center gap-3">
+                    <Badge tone={STAGE_STATE[d.stages[stage]]} />
+                    {stage !== 'register' && (
+                      <button type="button" onClick={() => actions.runStage(stage)} disabled={actions.busy || pendingRuns.has(stage)} className="rounded-lg border border-line px-2.5 py-1 text-xs text-ink-2 hover:border-accent hover:text-ink disabled:opacity-50">
+                        {pendingRuns.has(stage) ? 'Queued…' : 'Run stage'}
+                      </button>
+                    )}
+                  </div>
+                </header>
+                <ul className="divide-y divide-line">
+                  {rules.map((rule) => (
+                    <RuleRow
+                      key={rule.id}
+                      rule={rule}
+                      result={byRule.get(rule.id)}
+                      attestation={attByRule.get(rule.id)}
+                      busy={actions.busy}
+                      pending={pendingRuns.has(rule.id)}
+                      onAttest={() => actions.attestRule(rule.id)}
+                      onRevoke={() => actions.revoke(attByRule.get(rule.id)!.id)}
+                      onFix={() => actions.fix(rule)}
+                      onRecheck={() => actions.recheckRule(rule.id)}
+                    />
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

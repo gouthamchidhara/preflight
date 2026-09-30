@@ -1,23 +1,31 @@
 /**
- * App shell (PLAN.md §3, T7). Hash routes: #/ (fleet) and #/devices/:id.
+ * App shell (PLAN.md §3, T7). Sidebar navigation + hash routes:
+ * #/ (fleet), #/fixes, #/checks, #/activity, #/devices/:id.
  * Data: live API by default; `?mock` in the URL (or VITE_MOCK=1) uses the built-in demo fleet.
  */
 import { useEffect, useState } from 'react';
-import { LogOut, PlaneTakeoff } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { DEFAULT_RULES } from '@umd/contracts';
 import { Fleet } from './pages/Fleet.js';
 import { DeviceDetailPage } from './pages/Device.js';
+import { FixCenter } from './pages/FixCenter.js';
+import { Checks } from './pages/Checks.js';
+import { Activity } from './pages/Activity.js';
 import { SourceContext } from './lib/context.js';
 import { httpSource, type Me, type Source } from './lib/source.js';
 import { mockSource } from './lib/mock.js';
-import { signOut } from './lib/auth.js';
+import { usePoll } from './lib/usePoll.js';
+import { Sidebar } from './components/Sidebar.js';
 import { Banner } from './components/Banner.js';
 
-type Route = { page: 'fleet' } | { page: 'device'; id: string };
+type Route = { page: 'fleet' } | { page: 'fixes' } | { page: 'checks' } | { page: 'activity' } | { page: 'device'; id: string };
 
 export function parseRoute(hash: string): Route {
-  const m = /^#\/devices\/([\w-]+)$/.exec(hash);
-  return m ? { page: 'device', id: m[1]! } : { page: 'fleet' };
+  const device = /^#\/devices\/([\w-]+)$/.exec(hash);
+  if (device) return { page: 'device', id: device[1]! };
+  const section = /^#\/(fixes|checks|activity)$/.exec(hash);
+  if (section) return { page: section[1] as 'fixes' | 'checks' | 'activity' };
+  return { page: 'fleet' };
 }
 
 export function pickSource(): Source {
@@ -33,6 +41,7 @@ export function App({ initialHash, source = pickSource() }: { initialHash?: stri
   const [ready, setReady] = useState(source.kind === 'mock');
   const [me, setMe] = useState<Me | null>(null);
   const [initError, setInitError] = useState<string | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -53,11 +62,19 @@ export function App({ initialHash, source = pickSource() }: { initialHash?: stri
   useEffect(() => {
     const onHash = () => {
       setRoute(parseRoute(window.location.hash));
+      setNavOpen(false);
       window.scrollTo(0, 0);
     };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+
+  // Sidebar badges; polled separately so each page keeps owning its own data.
+  const { data: fleet } = usePoll(() => (ready ? source.listDevices() : Promise.resolve([])), 30_000, [source, ready]);
+  const counts = {
+    devices: fleet?.length ?? 0,
+    issues: fleet?.reduce((n, d) => n + d.failing.length, 0) ?? 0,
+  };
 
   const go = (hash: string) => {
     window.location.hash = hash;
@@ -65,34 +82,26 @@ export function App({ initialHash, source = pickSource() }: { initialHash?: stri
 
   return (
     <SourceContext.Provider value={source}>
-      <div className="min-h-screen">
-        <nav className="border-b border-line bg-surface">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-            <a href="#/" className="inline-flex items-center gap-2 font-semibold">
-              <PlaneTakeoff size={20} className="text-accent" aria-hidden />
-              Preflight
-              <span className="hidden font-normal text-ink-3 sm:inline">· UMD readiness</span>
-            </a>
-            <div className="flex items-center gap-3 text-sm text-ink-2">
-              {source.kind === 'mock' && <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-3">Mock data</span>}
-              {me && <span className="hidden sm:inline">{me.name}</span>}
-              {source.kind === 'api' && me && (
-                <button type="button" onClick={() => void signOut()} aria-label="Sign out" className="rounded p-1 text-ink-3 hover:text-ink">
-                  <LogOut size={16} />
-                </button>
-              )}
-            </div>
-          </div>
-        </nav>
-        <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
-          {initError && <Banner>Can't start: {initError}</Banner>}
-          {ready &&
-            (route.page === 'fleet' ? (
-              <Fleet rules={DEFAULT_RULES} onOpen={(id) => go(`#/devices/${id}`)} />
-            ) : (
-              <DeviceDetailPage key={route.id} id={route.id} onBack={() => go('#/')} />
-            ))}
-        </main>
+      <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
+        <Sidebar page={route.page} me={me} sourceKind={source.kind} counts={counts} open={navOpen} onClose={() => setNavOpen(false)} />
+
+        <div className="flex min-h-screen min-w-0 flex-col">
+          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-surface px-4 py-3 lg:hidden">
+            <button type="button" onClick={() => setNavOpen(true)} aria-label="Open navigation" className="rounded p-1 text-ink-2 hover:text-ink">
+              <Menu size={20} />
+            </button>
+            <span className="font-semibold">Preflight</span>
+          </header>
+
+          <main className="mx-auto w-full max-w-6xl flex-1 space-y-4 px-4 py-6">
+            {initError && <Banner>Can't start: {initError}</Banner>}
+            {ready && route.page === 'fleet' && <Fleet rules={DEFAULT_RULES} onOpen={(id) => go(`#/devices/${id}`)} />}
+            {ready && route.page === 'fixes' && <FixCenter onOpen={(id) => go(`#/devices/${id}`)} />}
+            {ready && route.page === 'checks' && <Checks rules={DEFAULT_RULES} />}
+            {ready && route.page === 'activity' && <Activity onOpen={(id) => go(`#/devices/${id}`)} />}
+            {ready && route.page === 'device' && <DeviceDetailPage key={route.id} id={route.id} onBack={() => go('#/')} />}
+          </main>
+        </div>
       </div>
     </SourceContext.Provider>
   );
