@@ -187,3 +187,29 @@ export function resolvePolicy(rules: RuleT[], golden: Golden): RuleT[] {
 /** True when a value is still a Phase 0 placeholder. */
 export const isTbd = (v: unknown): boolean =>
   v === null || v === undefined || (typeof v === 'string' && v.startsWith('TBD')) || (Array.isArray(v) && v.length === 1 && isTbd(v[0]));
+
+/** A golden value never captured in Phase 0: a TBD placeholder, null, or an empty list. */
+function unsetGolden(v: unknown): boolean {
+  if (isTbd(v)) return true;
+  if (Array.isArray(v)) return v.length === 0 || v.every(isTbd);
+  if (v && typeof v === 'object') {
+    const vals = Object.values(v);
+    return vals.length > 0 && vals.every(unsetGolden);
+  }
+  return false;
+}
+
+function paramBlocked(v: unknown, golden: Golden): boolean {
+  if (typeof v === 'string') return v.startsWith('@golden:') ? unsetGolden(lookupGolden(golden, v.slice(8))) : isTbd(v);
+  if (Array.isArray(v)) return v.some((x) => paramBlocked(x, golden));
+  if (v && typeof v === 'object') return Object.values(v).some((x) => paramBlocked(x, golden));
+  return false;
+}
+
+/**
+ * Checks no technician can clear: a server-side check with no server yet, or one whose
+ * golden value was never captured. This is configuration work, not device work (§5.5).
+ */
+export function unconfiguredRuleIds(rules: RuleT[], golden: Golden): string[] {
+  return rules.filter((r) => r.context === 'server' || Object.values(r.params).some((v) => paramBlocked(v, golden))).map((r) => r.id);
+}

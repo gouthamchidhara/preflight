@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { DEFAULT_RULES, MANUAL_ITEMS, SCRIPT_CATALOG, isTbd, resolvePolicy, validateScriptParams } from './index.js';
+import { DEFAULT_RULES, MANUAL_ITEMS, SCRIPT_CATALOG, isTbd, resolvePolicy, unconfiguredRuleIds, validateScriptParams } from './index.js';
 
 const golden = JSON.parse(readFileSync(new URL('../../../golden/manifest.json', import.meta.url), 'utf8'));
 
@@ -58,5 +58,29 @@ describe('isTbd', () => {
     expect(isTbd(null)).toBe(true);
     expect(isTbd('26100')).toBe(false);
     expect(isTbd([])).toBe(false);
+  });
+});
+
+describe('unconfiguredRuleIds', () => {
+  const golden = {
+    'os.build': '26100',
+    'net.groundHost': 'TBD(P0-2)',
+    'desktop.icons': [],
+    'apps.required': ['Firefox'],
+  };
+
+  it('flags checks whose golden value was never captured', () => {
+    const ids = unconfiguredRuleIds(DEFAULT_RULES, golden);
+    expect(ids).toContain('net.ground'); // TBD placeholder
+    expect(ids).toContain('ui.desktop-icons'); // empty list
+    expect(ids).toContain('img.buildstats'); // server-side check, no server yet
+    expect(ids).not.toContain('app.required-set'); // captured
+  });
+
+  it('flags params holding a literal TBD, and clears once golden is captured', () => {
+    expect(unconfiguredRuleIds(DEFAULT_RULES, golden)).toContain('ui.display');
+    const rule = DEFAULT_RULES.filter((r) => r.id === 'app.required-set');
+    expect(unconfiguredRuleIds(rule, { 'apps.required': [] })).toEqual(['app.required-set']);
+    expect(unconfiguredRuleIds(rule, { 'apps.required': ['Firefox'] })).toEqual([]);
   });
 });

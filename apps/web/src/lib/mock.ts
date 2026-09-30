@@ -46,6 +46,7 @@ export function mockDetail(d: Device): DeviceDetail {
     attestations: atts.get(d.id) ?? [],
     jobs: [...jobs.values()].filter((j) => j.deviceId === d.id).reverse(),
     lastRunAt: d.results.reduce((m, r) => (r.checkedAt > m ? r.checkedAt : m), ''),
+    unconfigured: [],
   };
 }
 

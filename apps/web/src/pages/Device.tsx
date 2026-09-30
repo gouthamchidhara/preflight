@@ -10,6 +10,7 @@ import { StageBar } from '../components/StageBar.js';
 import { Banner } from '../components/Banner.js';
 import { NoteDialog } from '../components/NoteDialog.js';
 import { Tabs } from '../components/Tabs.js';
+import { Value } from '../components/Value.js';
 import type { RunSummary } from '../lib/source.js';
 
 function CopyField({ label, value }: { label: string; value: string }) {
@@ -105,9 +106,9 @@ function RuleRow({ rule, result, attestation, busy, pending, onAttest, onRevoke,
         {detail && (
           <dl className="mt-1 grid gap-x-3 text-sm sm:grid-cols-[5rem_1fr]">
             <dt className="text-ink-3">Expected</dt>
-            <dd className="break-words font-mono text-xs leading-5 text-ink-2">{show(result?.expected)}</dd>
+            <dd className="min-w-0"><Value text={show(result?.expected)} /></dd>
             <dt className="text-ink-3">Actual</dt>
-            <dd className={`break-words font-mono text-xs leading-5 ${failing ? 'text-critical-ink' : 'text-ink-2'}`}>{show(result?.actual)}</dd>
+            <dd className="min-w-0"><Value text={show(result?.actual)} bad={failing} /></dd>
           </dl>
         )}
         {(failing || state === 'needs_human') && rule.hint && <p className="mt-1.5 text-sm text-ink-2">→ {rule.hint}</p>}

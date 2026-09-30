@@ -50,6 +50,8 @@ export interface DeviceDetail extends DeviceSummary {
   attestations: AttestationView[];
   jobs: JobView[];
   lastRunAt: string | null;
+  /** Rule ids blocked by uncaptured golden values; an admin must configure these, not a tech. */
+  unconfigured: string[];
 }
 
 /**

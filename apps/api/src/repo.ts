@@ -8,6 +8,7 @@ import {
   Result,
   resolvePolicy,
   summarizeDevice,
+  unconfiguredRuleIds,
   withSyntheticResults,
   type AttestationView,
   type Checkin,
@@ -316,6 +317,7 @@ export class Repo {
       attestations,
       jobs,
       lastRunAt: iso(lastRun[0]?.finished_at),
+      unconfigured: unconfiguredRuleIds(rules, this.golden),
     };
   }
 
